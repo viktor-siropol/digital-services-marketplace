@@ -15,6 +15,7 @@ import Profile from "./pages/User/Profile";
 import Shop from "./pages/User/shop";
 import AdminRoute from "./pages/Admin/AdminRoute";
 import UserList from "./pages/Admin/UserList";
+import CategoryList from "./pages/Admin/CategoryList";
 
 const Layout = () => {
   return (
@@ -41,6 +42,7 @@ const router = createBrowserRouter(
 
       <Route path="/admin" element={<AdminRoute />}>
         <Route path="userlist" element={<UserList />} />
+        <Route path="category" element={<CategoryList />} />
       </Route>
     </Route>,
   ),

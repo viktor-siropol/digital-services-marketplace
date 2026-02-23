@@ -5,7 +5,7 @@ import { logout } from "../../redux/features/auth/authSlice";
 import { generateAvatarColor } from "../../utils/avatarColor";
 import Button from "../../components/Button/Button";
 import logo from "../../assets/logos/print_transparent.svg";
-import UserList from "../Admin/UserList";
+import { Link } from "react-router-dom";
 
 const Navigation = () => {
   const dispatch = useDispatch();
@@ -35,10 +35,11 @@ const Navigation = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  return (
+  return ( 
     <header className="h-16 px-6 flex items-center justify-between bg-white border-b border-gray-100">
-      <img src={logo} alt="BitMarket logo" className="h-15 mt-1" />
-
+      <Link to="/" className="inline-block">
+        <img src={logo} alt="BitMarket" className="h-18  w-auto" />
+      </Link>
       <nav>
         <ul className="flex gap-6">
           {["Art", "Education", "Technology"].map((item) => (

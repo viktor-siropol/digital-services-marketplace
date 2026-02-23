@@ -8,17 +8,22 @@ import { useState } from "react";
 import Loader from "../../components/Loader";
 import { FaCheck, FaTimes, FaEdit, FaTrash } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { useSelector, useDispatch } from "react-redux";
+import { setCredentials } from "../../redux/features/auth/authSlice";
 
 const UserList = () => {
   console.log("Loader import =", Loader);
   const { data: users, isLoading, error } = useGetUsersQuery();
   const [deleteUser] = useDeleteUserMutation();
-  const [updateUser, { isLoading: updating }] = useUpdateUserMutation();
+  const [updateUser] = useUpdateUserMutation();
 
   const [editableUserId, setEditableUserId] = useState(null);
   const [editableUserName, setEditableUserName] = useState("");
   const [editableUserEmail, setEditableUserEmail] = useState("");
   const [editableUserIsSeller, setEditableUserIsSeller] = useState("");
+
+  const { userInfo } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
 
   const toogleEdit = (id, username, email, isSeller) => {
     setEditableUserId(id);
@@ -27,19 +32,26 @@ const UserList = () => {
     setEditableUserIsSeller(isSeller);
   };
 
-  const updateHandler = async (id) => {
-    try {
-      await updateUser({
-        id: id,
-        username: editableUserName,
-        email: editableUserEmail,
-        isSeller: editableUserIsSeller,
-      }).unwrap();
-      setEditableUserId(null);
-    } catch (error) {
-      toast.error(error?.data?.message || error.error);
+const updateHandler = async (id) => {
+  try {
+    const updated = await updateUser({
+      id,
+      username: editableUserName,
+      email: editableUserEmail,
+      isSeller: editableUserIsSeller,
+    }).unwrap();
+
+    setEditableUserId(null);
+    toast.success("User updated");
+
+    // ✅ jeśli admin edytował siebie, odśwież auth.userInfo
+    if (String(userInfo?._id) === String(updated?._id)) {
+      dispatch(setCredentials({ ...userInfo, ...updated }));
     }
-  };
+  } catch (error) {
+    toast.error(error?.data?.message || error?.error);
+  }
+};
 
   const deleteHandler = async (id) => {
     try {
@@ -182,7 +194,10 @@ const UserList = () => {
                   </td>
                   <td className="px-4 py-2">
                     {!user.isAdmin && (
-                      <button onClick={() => deleteHandler(user._id)}>
+                      <button
+                        onClick={() => deleteHandler(user._id)}
+                        className="border px-4 p-2 rounded-md bg-red-600 text-white"
+                      >
                         {" "}
                         <FaTrash />{" "}
                       </button>

@@ -35,7 +35,7 @@ const Profile = () => {
           email,
           password,
         }).unwrap();
-        dispatch(setCredentials({ ... res }));
+        dispatch(setCredentials({ ...res }));
         toast.success("Profile updated successfully");
       } catch (err) {
         toast.error(err?.data?.message || err.error);
@@ -97,9 +97,9 @@ const Profile = () => {
             </div>
             <button
               type="submit"
-              className="border rounded-md  cursor-pointer mt-3"
+              className="bg-pink-600 text-white py-2 px-4 rounded hover:bg-pink-700"
             >
-              hello
+              Update
             </button>
             {loadingUpdateProfile && <Loader />}
           </form>
