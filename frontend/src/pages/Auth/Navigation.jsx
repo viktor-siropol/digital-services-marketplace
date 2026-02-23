@@ -5,6 +5,7 @@ import { logout } from "../../redux/features/auth/authSlice";
 import { generateAvatarColor } from "../../utils/avatarColor";
 import Button from "../../components/Button/Button";
 import logo from "../../assets/logos/print_transparent.svg";
+import UserList from "../Admin/UserList";
 
 const Navigation = () => {
   const dispatch = useDispatch();
@@ -84,6 +85,17 @@ const Navigation = () => {
                 >
                   Profile
                 </button>
+                {userInfo.isAdmin && (
+                  <button
+                    onClick={() => {
+                      navigate("/admin/userlist");
+                      setIsOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                  >
+                    Users
+                  </button>
+                )}
                 <button
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
                   onClick={handleLogout}

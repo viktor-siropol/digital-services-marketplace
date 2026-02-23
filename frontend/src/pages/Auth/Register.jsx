@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { setCredentials } from "../../redux/features/auth/authSlice";
 import { useRegisterMutation } from "../../redux/api/userApiSlice";
 import { toast } from "react-toastify";
+import Loader from "../../components/Loader";
 
 const Register = () => {
   const dispatch = useDispatch();
