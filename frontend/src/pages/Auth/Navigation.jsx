@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../../redux/features/auth/authSlice";
 import { generateAvatarColor } from "../../utils/avatarColor";
 import Button from "../../components/Button/Button";
-import logo from "../../assets/logos/print_transparent.svg";
+import logo from "../../assets/images/print_transparent.svg";
 import { Link } from "react-router-dom";
 
 const Navigation = () => {
