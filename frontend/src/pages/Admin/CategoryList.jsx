@@ -124,7 +124,7 @@ const CategoryList = () => {
                 type="submit"
                 disabled={creating}
                 className="rounded-xl px-5 py-3 font-medium text-white shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed
-                           bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-600 hover:to-fuchsia-600"
+                           bg-linear-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-600 hover:to-fuchsia-600"
               >
                 {creating ? "Creating…" : "Create"}
               </button>
@@ -204,7 +204,7 @@ const CategoryList = () => {
                           </form>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" />
+                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-linear-to-r from-indigo-500 to-fuchsia-500" />
                             <span className="truncate font-medium text-slate-900">
                               {c.name}
                             </span>
