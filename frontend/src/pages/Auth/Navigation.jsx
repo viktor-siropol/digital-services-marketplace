@@ -35,7 +35,7 @@ const Navigation = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  return ( 
+  return (
     <header className="h-16 px-6 flex items-center justify-between bg-white border-b border-gray-100">
       <Link to="/" className="inline-block">
         <img src={logo} alt="BitMarket" className="h-18  w-auto" />
@@ -87,15 +87,26 @@ const Navigation = () => {
                   Profile
                 </button>
                 {userInfo.isAdmin && (
-                  <button
-                    onClick={() => {
-                      navigate("/admin/userlist");
-                      setIsOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
-                  >
-                    Users
-                  </button>
+                  <div>
+                    <button
+                      onClick={() => {
+                        navigate("/admin/userlist");
+                        setIsOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      Users
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/admin/category");
+                        setIsOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      Category
+                    </button>
+                  </div>
                 )}
                 <button
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"

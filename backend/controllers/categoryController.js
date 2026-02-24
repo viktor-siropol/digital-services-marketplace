@@ -19,25 +19,35 @@ const createCategory = asyncHandler(async (req, res) => {
   res.status(201).json(newCategory);
 });
 
-const getCategories = asyncHandler(async (req, res) => {});
-const getCategoryById = asyncHandler(async (req, res) => {
-  try {
-    const category = await Category.findById(req.params.id);
-
-    res.json(category);
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json(error.message);
+const getCategories = asyncHandler(async (req, res) => {
+  const categories = await Category.find({});
+  if (!categories) {
+    res.status(400);
+    throw new Error("No categories yet");
   }
+  res.json(categories);
 });
 
-const updateCategory = asyncHandler(async (req, res) => {});
-const deleteCategory = asyncHandler(async (req, res) => {});
+const updateCategory = asyncHandler(async (req, res) => {
+  const category = await Category.findById(req.params.id);
+  if (!category) {
+    res.status(404);
+    throw new Error("Category not found");
+  }
 
-export {
-  createCategory,
-  getCategories,
-  getCategoryById,
-  updateCategory,
-  deleteCategory,
-};
+  category.name = req.body.name || category.name;
+  const updatedCategory = await category.save();
+  res.json(updatedCategory);
+});
+const deleteCategory = asyncHandler(async (req, res) => {
+  const deleted = await Category.findByIdAndDelete(req.params.id);
+
+  if (!deleted) {
+    res.status(404);
+    throw new Error("Category not found");
+  }
+
+  res.json({ message: "Category deleted" });
+});
+
+export { createCategory, getCategories, updateCategory, deleteCategory };

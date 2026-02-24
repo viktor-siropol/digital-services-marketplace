@@ -32,26 +32,25 @@ const UserList = () => {
     setEditableUserIsSeller(isSeller);
   };
 
-const updateHandler = async (id) => {
-  try {
-    const updated = await updateUser({
-      id,
-      username: editableUserName,
-      email: editableUserEmail,
-      isSeller: editableUserIsSeller,
-    }).unwrap();
+  const updateHandler = async (id) => {
+    try {
+      const updated = await updateUser({
+        id,
+        username: editableUserName,
+        email: editableUserEmail,
+        isSeller: editableUserIsSeller,
+      }).unwrap();
 
-    setEditableUserId(null);
-    toast.success("User updated");
+      setEditableUserId(null);
+      toast.success("User updated");
 
-    // ✅ jeśli admin edytował siebie, odśwież auth.userInfo
-    if (String(userInfo?._id) === String(updated?._id)) {
-      dispatch(setCredentials({ ...userInfo, ...updated }));
+      if (String(userInfo?._id) === String(updated?._id)) {
+        dispatch(setCredentials({ ...userInfo, ...updated }));
+      }
+    } catch (error) {
+      toast.error(error?.data?.message || error?.error);
     }
-  } catch (error) {
-    toast.error(error?.data?.message || error?.error);
-  }
-};
+  };
 
   const deleteHandler = async (id) => {
     try {
