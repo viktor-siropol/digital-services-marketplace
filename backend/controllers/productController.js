@@ -30,29 +30,48 @@ const generateUniqueSlug = async ({ sellerId, name, excludeId }) => {
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const {
-    name,
-    brand,
-    category,
-    price,
-    quantity,
-    countInStock,
-    description,
-    image,
-  } = req.body;
+  const { name, brand, category, price, quantity, countInStock, description } =
+    req.body;
 
-  if (!name) return res.status(400).json({ error: "Name is required" });
-  if (!brand) return res.status(400).json({ error: "Brand is required" });
-  if (!description)
-    return res.status(400).json({ error: "Description is required" });
-  if (price === undefined)
-    return res.status(400).json({ error: "Price is required" });
-  if (!category) return res.status(400).json({ error: "Category is required" });
-  if (quantity === undefined)
-    return res.status(400).json({ error: "Quantity is required" });
-  if (countInStock === undefined)
-    return res.status(400).json({ error: "CountInStock is required" });
-  if (!image) return res.status(400).json({ error: "Image is required" });
+  if (!name) {
+    res.status(400);
+    throw new Error("Name is required");
+  }
+
+  if (!brand) {
+    res.status(400);
+    throw new Error("Brand is required");
+  }
+
+  if (!category) {
+    res.status(400);
+    throw new Error("Category is required");
+  }
+
+  if (price === undefined) {
+    res.status(400);
+    throw new Error("Price is required");
+  }
+
+  if (quantity === undefined) {
+    res.status(400);
+    throw new Error("Quantity is required");
+  }
+
+  if (countInStock === undefined) {
+    res.status(400);
+    throw new Error("CountInStock is required");
+  }
+
+  if (!description) {
+    res.status(400);
+    throw new Error("Description is required");
+  }
+
+  if (!req.files || req.files.length === 0) {
+    res.status(400);
+    throw new Error("At least one image is required");
+  }
 
   const sellerId = req.user._id;
 
@@ -61,17 +80,19 @@ export const createProduct = asyncHandler(async (req, res) => {
     name,
   });
 
+  const imagePaths = req.files.map((file) => `/uploads/tmp/${file.filename}`);
+
   const product = await Product.create({
     seller: sellerId,
     name,
     slug,
+    images: imagePaths,
     brand,
     category,
-    price,
-    quantity,
-    countInStock,
+    price: Number(price),
+    quantity: Number(quantity),
+    countInStock: Number(countInStock),
     description,
-    image,
   });
 
   res.status(201).json(product);
