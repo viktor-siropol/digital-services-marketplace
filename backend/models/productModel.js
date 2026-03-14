@@ -27,7 +27,16 @@ const productSchema = new mongoose.Schema(
 
     slug: { type: String, required: true, trim: true },
 
-    images: [{ type: String }],
+    images: [
+      {
+        imageId: { type: String, required: true },
+        original: { type: String, required: true },
+        medium: { type: String, required: true },
+        thumbnail: { type: String, required: true },
+        blurDataURL: { type: String, default: "" },
+        alt: { type: String, default: "" },
+      },
+    ],
     brand: { type: String, required: true },
 
     category: {

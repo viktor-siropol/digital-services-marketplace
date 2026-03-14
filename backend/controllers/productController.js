@@ -1,5 +1,7 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
+import { processProductImages } from "../utilities/processProductImages.js";
+import { deleteManyLocalImageSets } from "../utilities/deleteLocalImageSet.js";
 
 const slugify = (text) =>
   text
@@ -80,13 +82,13 @@ export const createProduct = asyncHandler(async (req, res) => {
     name,
   });
 
-  const imagePaths = req.files.map((file) => `/uploads/tmp/${file.filename}`);
+  const processedImages = await processProductImages(req.files);
 
   const product = await Product.create({
     seller: sellerId,
     name,
     slug,
-    images: imagePaths,
+    images: processedImages,
     brand,
     category,
     price: Number(price),
@@ -109,6 +111,42 @@ export const updateProduct = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
+  let retainedImageIds = product.images.map((img) => img.imageId);
+
+  if (typeof req.body.retainedImageIds !== "undefined") {
+    try {
+      const parsed = JSON.parse(req.body.retainedImageIds);
+
+      if (!Array.isArray(parsed)) {
+        res.status(400);
+        throw new Error("retainedImageIds must be a JSON array");
+      }
+
+      retainedImageIds = parsed;
+    } catch (error) {
+      res.status(400);
+      throw new Error("retainedImageIds must be a valid JSON array");
+    }
+  }
+
+  const keptImages = product.images.filter((img) =>
+    retainedImageIds.includes(img.imageId),
+  );
+
+  const removedImages = product.images.filter(
+    (img) => !retainedImageIds.includes(img.imageId),
+  );
+
+  if (keptImages.length === 0 && (!req.files || req.files.length === 0)) {
+    res.status(400);
+    throw new Error("Product must have at least one image");
+  }
+
+  const newImages =
+    req.files && req.files.length > 0
+      ? await processProductImages(req.files)
+      : [];
+
   if (req.body.name && req.body.name.trim() !== product.name) {
     const newName = req.body.name.trim();
 
@@ -122,16 +160,43 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   product.brand = req.body.brand ?? product.brand;
   product.category = req.body.category ?? product.category;
-  product.price = req.body.price ?? product.price;
-  product.quantity = req.body.quantity ?? product.quantity;
-  product.countInStock = req.body.countInStock ?? product.countInStock;
+  product.price =
+    req.body.price !== undefined ? Number(req.body.price) : product.price;
+  product.quantity =
+    req.body.quantity !== undefined
+      ? Number(req.body.quantity)
+      : product.quantity;
+  product.countInStock =
+    req.body.countInStock !== undefined
+      ? Number(req.body.countInStock)
+      : product.countInStock;
   product.description = req.body.description ?? product.description;
-  product.image = req.body.image ?? product.image;
+
+  product.images = [...keptImages, ...newImages];
 
   const updatedProduct = await product.save();
 
-  res.json({
-    ...updatedProduct.toObject(),
-    canonicalUrl: `/api/products/p/${updatedProduct._id}/${updatedProduct.slug}`,
+  await deleteManyLocalImageSets(removedImages);
+
+  res.json(updatedProduct);
+});
+
+export const deleteProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    _id: req.params.id,
+    seller: req.user._id,
   });
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const imagesToDelete = product.images;
+
+  await Product.deleteOne({ _id: product._id });
+
+  await deleteManyLocalImageSets(imagesToDelete);
+
+  res.json({ message: "Product deleted successfully" });
 });

@@ -1,12 +1,19 @@
 import express from "express";
-import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
-import { createProduct } from "../controllers/productController.js";
+import { authenticate } from "../middlewares/authMiddleware.js";
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "../controllers/productController.js";
 import upload from "../middlewares/uploadMiddleware.js";
 
 const router = express.Router();
 
+router.route("/").post(authenticate, upload.array("images", 8), createProduct);
+
 router
-  .route("/")
-  .post(authenticate, authorizeAdmin, upload.array("images", 8), createProduct);
+  .route("/:id")
+  .put(authenticate, upload.array("images", 8), updateProduct)
+  .delete(authenticate, deleteProduct);
 
 export default router;
