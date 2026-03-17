@@ -24,7 +24,6 @@ const productSchema = new mongoose.Schema(
     },
 
     name: { type: String, required: true },
-
     slug: { type: String, required: true, trim: true },
 
     images: [
@@ -37,6 +36,21 @@ const productSchema = new mongoose.Schema(
         alt: { type: String, default: "" },
       },
     ],
+
+    tempUploads: [{ type: String }],
+
+    status: {
+      type: String,
+      enum: ["processing", "ready", "failed"],
+      default: "ready",
+      index: true,
+    },
+
+    processingError: {
+      type: String,
+      default: "",
+    },
+
     brand: { type: String, required: true },
 
     category: {
@@ -60,4 +74,5 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ seller: 1, slug: 1 }, { unique: true });
 
 const Product = mongoose.model("Product", productSchema);
+
 export default Product;

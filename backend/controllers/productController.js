@@ -1,7 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import { processProductImages } from "../utilities/processProductImages.js";
-import { deleteManyLocalImageSets } from "../utilities/deleteLocalImageSet.js";
+import {
+  deleteManyLocalFiles,
+  deleteManyLocalImageSets,
+} from "../utilities/deleteLocalImageSet.js";
+import { imageQueue } from "../queues/imageQueue.js";
 
 const slugify = (text) =>
   text
@@ -82,13 +86,16 @@ export const createProduct = asyncHandler(async (req, res) => {
     name,
   });
 
-  const processedImages = await processProductImages(req.files);
+  const tempUploads = req.files.map((file) => file.path);
 
   const product = await Product.create({
     seller: sellerId,
     name,
     slug,
-    images: processedImages,
+    images: [],
+    tempUploads,
+    status: "processing",
+    processingError: "",
     brand,
     category,
     price: Number(price),
@@ -96,6 +103,27 @@ export const createProduct = asyncHandler(async (req, res) => {
     countInStock: Number(countInStock),
     description,
   });
+
+  try {
+    await imageQueue.add(
+      "process-product-images",
+      {
+        productId: product._id.toString(),
+      },
+      {
+        jobId: `product-images:${product._id}`,
+        removeOnComplete: true,
+        removeOnFail: false,
+        attempts: 1,
+      },
+    );
+  } catch (error) {
+    await deleteManyLocalFiles(tempUploads);
+    await Product.deleteOne({ _id: product._id });
+
+    res.status(500);
+    throw new Error("Failed to enqueue image processing job");
+  }
 
   res.status(201).json(product);
 });
@@ -193,10 +221,12 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   const imagesToDelete = product.images;
+  const tempUploadsToDelete = product.tempUploads;
 
   await Product.deleteOne({ _id: product._id });
 
   await deleteManyLocalImageSets(imagesToDelete);
+  await deleteManyLocalFiles(tempUploadsToDelete);
 
   res.json({ message: "Product deleted successfully" });
 });
