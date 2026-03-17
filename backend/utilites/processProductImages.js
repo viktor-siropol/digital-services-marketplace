@@ -17,9 +17,7 @@ ensureDir("uploads/products/thumb");
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
-  } catch (error) {
-    // ignorujemy brak pliku lub błąd cleanupu
-  }
+  } catch (error) {}
 };
 
 export const processProductImages = async (files) => {

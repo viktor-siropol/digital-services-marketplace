@@ -230,3 +230,54 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   res.json({ message: "Product deleted successfully" });
 });
+
+export const getPublicProducts = asyncHandler(async (req, res) => {
+  const products = await Product.find({ status: "ready" })
+    .select("-tempUploads -processingError")
+    .sort({ createdAt: -1 });
+
+  res.json(products);
+});
+
+export const getPublicProductById = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    _id: req.params.id,
+    status: "ready",
+  }).select("-tempUploads -processingError");
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const slugMatches = !req.params.slug || req.params.slug === product.slug;
+  const canonicalPath = `/products/${product._id}/${product.slug}`;
+
+  res.json({
+    product,
+    slugMatches,
+    canonicalPath,
+  });
+});
+
+export const getMyProducts = asyncHandler(async (req, res) => {
+  const products = await Product.find({ seller: req.user._id })
+    .select("-tempUploads")
+    .sort({ createdAt: -1 });
+
+  res.json(products);
+});
+
+export const getMyProductById = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    _id: req.params.id,
+    seller: req.user._id,
+  }).select("-tempUploads");
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  res.json(product);
+});

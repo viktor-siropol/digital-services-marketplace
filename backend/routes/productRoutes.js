@@ -4,12 +4,23 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getPublicProducts,
+  getPublicProductById,
+  getMyProducts,
+  getMyProductById,
 } from "../controllers/productController.js";
 import upload from "../middlewares/uploadMiddleware.js";
 
 const router = express.Router();
 
-router.route("/").post(authenticate, upload.array("images", 8), createProduct);
+router
+  .route("/")
+  .get(getPublicProducts)
+  .post(authenticate, upload.array("images", 8), createProduct);
+
+router.get("/mine", authenticate, getMyProducts);
+router.get("/manage/:id", authenticate, getMyProductById);
+router.get("/p/:id/:slug?", getPublicProductById);
 
 router
   .route("/:id")
