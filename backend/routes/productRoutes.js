@@ -8,6 +8,7 @@ import {
   getPublicProductById,
   getMyProducts,
   getMyProductById,
+  retryProductImageProcessing,
 } from "../controllers/productController.js";
 import upload from "../middlewares/uploadMiddleware.js";
 
@@ -21,6 +22,8 @@ router
 router.get("/mine", authenticate, getMyProducts);
 router.get("/manage/:id", authenticate, getMyProductById);
 router.get("/p/:id/:slug?", getPublicProductById);
+
+router.post("/:id/retry-processing", authenticate, retryProductImageProcessing);
 
 router
   .route("/:id")

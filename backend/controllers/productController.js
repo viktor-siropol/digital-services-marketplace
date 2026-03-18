@@ -6,6 +6,7 @@ import {
   deleteManyLocalImageSets,
 } from "../utilities/deleteLocalImageSet.js";
 import { imageQueue } from "../queues/imageQueue.js";
+import { localFilesExist } from "../utilities/deleteLocalImageSet.js";
 
 const slugify = (text) =>
   text
@@ -33,6 +34,23 @@ const generateUniqueSlug = async ({ sellerId, name, excludeId }) => {
   }
 
   return slug;
+};
+
+const enqueueImageProcessingJob = async (productId) => {
+  await imageQueue.add(
+    "process-product-images",
+    { productId },
+    {
+      jobId: `product-images-${productId}-${Date.now()}`,
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+    },
+  );
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -105,18 +123,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   });
 
   try {
-    await imageQueue.add(
-      "process-product-images",
-      {
-        productId: product._id.toString(),
-      },
-      {
-        jobId: `product-images:${product._id}`,
-        removeOnComplete: true,
-        removeOnFail: false,
-        attempts: 1,
-      },
-    );
+    await enqueueImageProcessingJob(product._id.toString());
   } catch (error) {
     await deleteManyLocalFiles(tempUploads);
     await Product.deleteOne({ _id: product._id });
@@ -280,4 +287,68 @@ export const getMyProductById = asyncHandler(async (req, res) => {
   }
 
   res.json(product);
+});
+
+export const retryProductImageProcessing = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    _id: req.params.id,
+    seller: req.user._id,
+  });
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  if (product.status === "ready") {
+    res.status(400);
+    throw new Error("Product is already ready");
+  }
+
+  if (product.status === "processing") {
+    res.status(409);
+    throw new Error("Product is already processing");
+  }
+
+  if (!product.tempUploads || product.tempUploads.length === 0) {
+    res.status(400);
+    throw new Error("Retry is not available because temp uploads are missing");
+  }
+
+  const inputsExist = await localFilesExist(product.tempUploads);
+
+  if (!inputsExist) {
+    product.processingError =
+      "Retry is not available because temp upload files are missing. Re-upload images.";
+    await product.save();
+
+    res.status(409);
+    throw new Error(
+      "Retry is not available because temp upload files are missing",
+    );
+  }
+
+  const previousError = product.processingError;
+
+  product.status = "processing";
+  product.processingError = "";
+  await product.save();
+
+  try {
+    await enqueueImageProcessingJob(product._id.toString());
+  } catch (error) {
+    product.status = "failed";
+    product.processingError =
+      previousError || "Failed to enqueue retry image processing job";
+    await product.save();
+
+    res.status(500);
+    throw new Error("Failed to enqueue retry image processing job");
+  }
+
+  res.json({
+    message: "Image processing retry started",
+    productId: product._id,
+    status: product.status,
+  });
 });

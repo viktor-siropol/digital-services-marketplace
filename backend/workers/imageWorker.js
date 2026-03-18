@@ -3,6 +3,7 @@ import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis.js";
 import Product from "../models/productModel.js";
 import { processProductImages } from "../utilities/processProductImages.js";
+import { localFilesExist } from "../utilities/deleteLocalImageSet.js";
 
 const imageWorker = new Worker(
   "image-processing",
@@ -23,13 +24,27 @@ const imageWorker = new Worker(
       throw new Error("No temp uploads found for product");
     }
 
+    const inputsExist = await localFilesExist(product.tempUploads);
+
+    if (!inputsExist) {
+      product.status = "failed";
+      product.processingError =
+        "Temp upload files are missing. Retry requires re-upload.";
+      await product.save();
+
+      throw new Error("Temp upload files are missing");
+    }
+
     const files = product.tempUploads.map((filePath) => ({
       path: filePath,
       filename: path.basename(filePath),
     }));
 
     try {
-      const processedImages = await processProductImages(files);
+      const processedImages = await processProductImages(files, {
+        deleteInputOnSuccess: true,
+        deleteInputOnError: false,
+      });
 
       product.images = processedImages;
       product.tempUploads = [];
@@ -38,8 +53,11 @@ const imageWorker = new Worker(
 
       await product.save();
     } catch (error) {
-      product.status = "failed";
+      const maxAttempts = job.opts.attempts ?? 1;
+      const isLastAttempt = job.attemptsMade + 1 >= maxAttempts;
+
       product.processingError = error.message;
+      product.status = isLastAttempt ? "failed" : "processing";
 
       await product.save();
 
@@ -57,6 +75,10 @@ imageWorker.on("completed", (job) => {
 
 imageWorker.on("failed", (job, err) => {
   console.error(`Job ${job?.id} failed:`, err.message);
+});
+
+imageWorker.on("error", (err) => {
+  console.error("Worker error:", err.message);
 });
 
 console.log("Image worker is running...");

@@ -17,10 +17,14 @@ ensureDir("uploads/products/thumb");
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
-  } catch (error) {}
+  } catch (error) {
+    // ignorujemy brak pliku lub błąd cleanupu
+  }
 };
 
-export const processProductImages = async (files) => {
+export const processProductImages = async (files, options = {}) => {
+  const { deleteInputOnSuccess = true, deleteInputOnError = true } = options;
+
   const results = [];
   const createdFiles = [];
 
@@ -81,7 +85,9 @@ export const processProductImages = async (files) => {
 
       const blurDataURL = `data:image/webp;base64,${blurBuffer.toString("base64")}`;
 
-      await safeUnlink(file.path);
+      if (deleteInputOnSuccess) {
+        await safeUnlink(file.path);
+      }
 
       results.push({
         imageId,
@@ -99,8 +105,10 @@ export const processProductImages = async (files) => {
       await safeUnlink(filePath);
     }
 
-    for (const file of files) {
-      await safeUnlink(file.path);
+    if (deleteInputOnError) {
+      for (const file of files) {
+        await safeUnlink(file.path);
+      }
     }
 
     throw error;

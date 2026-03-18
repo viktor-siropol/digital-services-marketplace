@@ -3,11 +3,24 @@ import fsPromises from "fs/promises";
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
-  } catch (error) {}
+  } catch (error) {
+  }
 };
 
 const normalizeLocalPath = (filePath) => {
   return filePath.startsWith("/") ? filePath.slice(1) : filePath;
+};
+
+export const localFilesExist = async (filePaths = []) => {
+  for (const filePath of filePaths.filter(Boolean)) {
+    try {
+      await fsPromises.access(normalizeLocalPath(filePath));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export const deleteManyLocalFiles = async (filePaths = []) => {
@@ -17,9 +30,11 @@ export const deleteManyLocalFiles = async (filePaths = []) => {
 };
 
 export const deleteLocalImageSet = async (image) => {
-  const filePaths = [image.original, image.medium, image.thumbnail].filter(
-    Boolean,
-  );
+  const filePaths = [
+    image.original,
+    image.medium,
+    image.thumbnail,
+  ].filter(Boolean);
 
   await deleteManyLocalFiles(filePaths);
 };
