@@ -10,20 +10,60 @@ const ensureDir = (dir) => {
   }
 };
 
-ensureDir("uploads/products/original");
-ensureDir("uploads/products/medium");
-ensureDir("uploads/products/thumb");
-
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
   } catch (error) {
-    // ignorujemy brak pliku lub błąd cleanupu
   }
 };
 
+const buildVariantDir = ({ sellerId, productId, variant }) => {
+  return path.join(
+    "uploads",
+    "products",
+    sellerId.toString(),
+    productId.toString(),
+    variant,
+  );
+};
+
 export const processProductImages = async (files, options = {}) => {
-  const { deleteInputOnSuccess = true, deleteInputOnError = true } = options;
+  const {
+    sellerId,
+    productId,
+    deleteInputOnSuccess = true,
+    deleteInputOnError = true,
+  } = options;
+
+  if (!sellerId) {
+    throw new Error("processProductImages requires sellerId");
+  }
+
+  if (!productId) {
+    throw new Error("processProductImages requires productId");
+  }
+
+  const originalDir = buildVariantDir({
+    sellerId,
+    productId,
+    variant: "original",
+  });
+
+  const mediumDir = buildVariantDir({
+    sellerId,
+    productId,
+    variant: "medium",
+  });
+
+  const thumbDir = buildVariantDir({
+    sellerId,
+    productId,
+    variant: "thumb",
+  });
+
+  ensureDir(originalDir);
+  ensureDir(mediumDir);
+  ensureDir(thumbDir);
 
   const results = [];
   const createdFiles = [];
@@ -31,19 +71,11 @@ export const processProductImages = async (files, options = {}) => {
   try {
     for (const file of files) {
       const imageId = randomUUID();
+      const webpFileName = `${imageId}.webp`;
 
-      const baseName = path.parse(file.filename).name;
-      const webpFileName = `${baseName}.webp`;
-
-      const originalLocalPath = path.join(
-        "uploads/products/original",
-        webpFileName,
-      );
-      const mediumLocalPath = path.join(
-        "uploads/products/medium",
-        webpFileName,
-      );
-      const thumbLocalPath = path.join("uploads/products/thumb", webpFileName);
+      const originalLocalPath = path.join(originalDir, webpFileName);
+      const mediumLocalPath = path.join(mediumDir, webpFileName);
+      const thumbLocalPath = path.join(thumbDir, webpFileName);
 
       await sharp(file.path)
         .rotate()

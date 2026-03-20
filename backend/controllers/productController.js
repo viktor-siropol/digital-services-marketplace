@@ -7,6 +7,7 @@ import {
 } from "../utilities/deleteLocalImageSet.js";
 import { imageQueue } from "../queues/imageQueue.js";
 import { localFilesExist } from "../utilities/deleteLocalImageSet.js";
+import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
 
 const slugify = (text) =>
   text
@@ -34,23 +35,6 @@ const generateUniqueSlug = async ({ sellerId, name, excludeId }) => {
   }
 
   return slug;
-};
-
-const enqueueImageProcessingJob = async (productId) => {
-  await imageQueue.add(
-    "process-product-images",
-    { productId },
-    {
-      jobId: `product-images-${productId}-${Date.now()}`,
-      removeOnComplete: true,
-      removeOnFail: false,
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 2000,
-      },
-    },
-  );
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -179,7 +163,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const newImages =
     req.files && req.files.length > 0
-      ? await processProductImages(req.files)
+      ? await processProductImages(req.files, {
+          sellerId: req.user._id.toString(),
+          productId: product._id.toString(),
+          deleteInputOnSuccess: true,
+          deleteInputOnError: true,
+        })
       : [];
 
   if (req.body.name && req.body.name.trim() !== product.name) {
