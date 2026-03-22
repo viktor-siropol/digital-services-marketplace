@@ -1,12 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
-import { processProductImages } from "../utilities/processProductImages.js";
+import { processProductImages } from "../utilites/processProductImages.js";
 import {
   deleteManyLocalFiles,
   deleteManyLocalImageSets,
-} from "../utilities/deleteLocalImageSet.js";
-import { imageQueue } from "../queues/imageQueue.js";
-import { localFilesExist } from "../utilities/deleteLocalImageSet.js";
+} from "../utilites/deleteLocalImageSet.js";
+import { localFilesExist } from "../utilites/deleteLocalImageSet.js";
 import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
 
 const slugify = (text) =>

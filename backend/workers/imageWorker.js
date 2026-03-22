@@ -2,11 +2,11 @@ import path from "path";
 import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis.js";
 import Product from "../models/productModel.js";
-import { processProductImages } from "../utilities/processProductImages.js";
+import { processProductImages } from "../utilites/processProductImages.js";
 import {
   deleteManyLocalFiles,
   localFilesExist,
-} from "../utilities/deleteLocalImageSet.js";
+} from "../utilites/deleteLocalImageSet.js";
 import { enqueueFailedTempUploadCleanupJob } from "../queues/imageQueue.js";
 
 const processProductImagesJob = async (job) => {

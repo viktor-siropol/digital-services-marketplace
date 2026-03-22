@@ -11,11 +11,13 @@ import "react-toastify/dist/ReactToastify.css";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ProtectedRoutes from "./components/ProtectedRoutes";
+import RoleRoute from "./components/RoleRoute";
 import Profile from "./pages/User/Profile";
 import Shop from "./pages/User/shop";
-import AdminRoute from "./pages/Admin/AdminRoute";
 import UserList from "./pages/Admin/UserList";
 import CategoryList from "./pages/Admin/CategoryList";
+import MyProducts from "./pages/Seller/MyProducts";
+import ManageProduct from "./pages/Seller/ManageProduct";
 
 const Layout = () => {
   return (
@@ -40,9 +42,14 @@ const router = createBrowserRouter(
         <Route path="profile" element={<Profile />} />
       </Route>
 
-      <Route path="/admin" element={<AdminRoute />}>
-        <Route path="userlist" element={<UserList />} />
-        <Route path="category" element={<CategoryList />} />
+      <Route element={<RoleRoute allowedRoles={["admin, seller"]} />}>
+        <Route path="seller/products" element={<MyProducts />} />
+        <Route path="seller/products/:id" element={<ManageProduct />} />
+      </Route>
+
+      <Route element={<RoleRoute allowedRoles={["admin"]} />}>
+        <Route path="admin/userlist" element={<UserList />} />
+        <Route path="admin/category" element={<CategoryList />} />
       </Route>
     </Route>,
   ),

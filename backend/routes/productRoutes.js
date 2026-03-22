@@ -19,9 +19,10 @@ router
   .get(getPublicProducts)
   .post(authenticate, upload.array("images", 8), createProduct);
 
+router.get("/p/:id", getPublicProductById);
+
 router.get("/mine", authenticate, getMyProducts);
 router.get("/manage/:id", authenticate, getMyProductById);
-router.get("/p/:id/:slug?", getPublicProductById);
 
 router.post("/:id/retry-processing", authenticate, retryProductImageProcessing);
 
