@@ -1,11 +1,9 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import { processProductImages } from "../utilites/processProductImages.js";
-import {
-  deleteManyLocalFiles,
-  deleteManyLocalImageSets,
-} from "../utilites/deleteLocalImageSet.js";
-import { localFilesExist } from "../utilites/deleteLocalImageSet.js";
+import { deleteManyLocalFiles } from "../utilites/localFileUtils.js";
+import { deleteManyCloudinaryProductImages } from "../utilites/cloudinaryProductImages.js";
+import { localFilesExist } from "../utilites/localFileUtils.js";
 import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
 
 const slugify = (text) =>
@@ -199,7 +197,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const updatedProduct = await product.save();
 
-  await deleteManyLocalImageSets(removedImages);
+  await deleteManyCloudinaryProductImages({
+    sellerId: product.seller.toString(),
+    productId: product._id.toString(),
+    images: removedImages,
+  });
 
   res.json(updatedProduct);
 });
@@ -220,7 +222,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 
   await Product.deleteOne({ _id: product._id });
 
-  await deleteManyLocalImageSets(imagesToDelete);
+  await deleteManyCloudinaryProductImages({
+    sellerId: product.seller.toString(),
+    productId: product._id.toString(),
+    images: imagesToDelete,
+  });
   await deleteManyLocalFiles(tempUploadsToDelete);
 
   res.json({ message: "Product deleted successfully" });

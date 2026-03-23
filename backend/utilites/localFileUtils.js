@@ -1,9 +1,15 @@
 import fsPromises from "fs/promises";
+import { logCleanupError } from "./logCleanupError.js";
 
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
   } catch (error) {
+    logCleanupError({
+      scope: "safeUnlink",
+      target: filePath,
+      error,
+    });
   }
 };
 
@@ -26,21 +32,5 @@ export const localFilesExist = async (filePaths = []) => {
 export const deleteManyLocalFiles = async (filePaths = []) => {
   for (const filePath of filePaths.filter(Boolean)) {
     await safeUnlink(normalizeLocalPath(filePath));
-  }
-};
-
-export const deleteLocalImageSet = async (image) => {
-  const filePaths = [
-    image.original,
-    image.medium,
-    image.thumbnail,
-  ].filter(Boolean);
-
-  await deleteManyLocalFiles(filePaths);
-};
-
-export const deleteManyLocalImageSets = async (images = []) => {
-  for (const image of images) {
-    await deleteLocalImageSet(image);
   }
 };

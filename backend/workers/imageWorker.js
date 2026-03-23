@@ -6,8 +6,13 @@ import { processProductImages } from "../utilites/processProductImages.js";
 import {
   deleteManyLocalFiles,
   localFilesExist,
-} from "../utilites/deleteLocalImageSet.js";
+} from "../utilites/localFileUtils.js";
 import { enqueueFailedTempUploadCleanupJob } from "../queues/imageQueue.js";
+import dotenv from "dotenv";
+import connectDB from "../config/db.js";
+
+dotenv.config();
+await connectDB();
 
 const processProductImagesJob = async (job) => {
   const { productId } = job.data;

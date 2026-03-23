@@ -1,30 +1,25 @@
-import fs from "fs";
 import fsPromises from "fs/promises";
-import path from "path";
 import sharp from "sharp";
 import { randomUUID } from "crypto";
-
-const ensureDir = (dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-};
+import {
+  buildCloudinaryAssetFolder,
+  buildCloudinaryImagePublicId,
+  buildCloudinaryImageUrls,
+  deleteCloudinaryImageByPublicId,
+  uploadBufferToCloudinary,
+} from "./cloudinaryProductImages.js";
+import { logCleanupError } from "./logCleanupError.js";
 
 const safeUnlink = async (filePath) => {
   try {
     await fsPromises.unlink(filePath);
   } catch (error) {
+    logCleanupError({
+      scope: "processProductImages.safeUnlink",
+      target: filePath,
+      error,
+    });
   }
-};
-
-const buildVariantDir = ({ sellerId, productId, variant }) => {
-  return path.join(
-    "uploads",
-    "products",
-    sellerId.toString(),
-    productId.toString(),
-    variant,
-  );
 };
 
 export const processProductImages = async (files, options = {}) => {
@@ -43,68 +38,36 @@ export const processProductImages = async (files, options = {}) => {
     throw new Error("processProductImages requires productId");
   }
 
-  const originalDir = buildVariantDir({
-    sellerId,
-    productId,
-    variant: "original",
-  });
-
-  const mediumDir = buildVariantDir({
-    sellerId,
-    productId,
-    variant: "medium",
-  });
-
-  const thumbDir = buildVariantDir({
-    sellerId,
-    productId,
-    variant: "thumb",
-  });
-
-  ensureDir(originalDir);
-  ensureDir(mediumDir);
-  ensureDir(thumbDir);
-
   const results = [];
-  const createdFiles = [];
+  const uploadedPublicIds = [];
 
   try {
     for (const file of files) {
       const imageId = randomUUID();
-      const webpFileName = `${imageId}.webp`;
 
-      const originalLocalPath = path.join(originalDir, webpFileName);
-      const mediumLocalPath = path.join(mediumDir, webpFileName);
-      const thumbLocalPath = path.join(thumbDir, webpFileName);
+      const publicId = buildCloudinaryImagePublicId({
+        sellerId,
+        productId,
+        imageId,
+      });
 
-      await sharp(file.path)
+      const assetFolder = buildCloudinaryAssetFolder({
+        sellerId,
+        productId,
+      });
+
+      const normalizedOriginalBuffer = await sharp(file.path)
         .rotate()
         .webp({ quality: 88, effort: 4 })
-        .toFile(originalLocalPath);
+        .toBuffer();
 
-      createdFiles.push(originalLocalPath);
+      await uploadBufferToCloudinary({
+        buffer: normalizedOriginalBuffer,
+        publicId,
+        assetFolder,
+      });
 
-      await sharp(file.path)
-        .rotate()
-        .resize(900, 900, {
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 82, effort: 4 })
-        .toFile(mediumLocalPath);
-
-      createdFiles.push(mediumLocalPath);
-
-      await sharp(file.path)
-        .rotate()
-        .resize(320, 320, {
-          fit: "cover",
-          position: "center",
-        })
-        .webp({ quality: 76, effort: 4 })
-        .toFile(thumbLocalPath);
-
-      createdFiles.push(thumbLocalPath);
+      uploadedPublicIds.push(publicId);
 
       const blurBuffer = await sharp(file.path)
         .rotate()
@@ -117,15 +80,17 @@ export const processProductImages = async (files, options = {}) => {
 
       const blurDataURL = `data:image/webp;base64,${blurBuffer.toString("base64")}`;
 
+      const urls = buildCloudinaryImageUrls({ publicId });
+
       if (deleteInputOnSuccess) {
         await safeUnlink(file.path);
       }
 
       results.push({
         imageId,
-        original: `/${originalLocalPath.replace(/\\/g, "/")}`,
-        medium: `/${mediumLocalPath.replace(/\\/g, "/")}`,
-        thumbnail: `/${thumbLocalPath.replace(/\\/g, "/")}`,
+        original: urls.original,
+        medium: urls.medium,
+        thumbnail: urls.thumbnail,
         blurDataURL,
         alt: "",
       });
@@ -133,8 +98,8 @@ export const processProductImages = async (files, options = {}) => {
 
     return results;
   } catch (error) {
-    for (const filePath of createdFiles) {
-      await safeUnlink(filePath);
+    for (const publicId of uploadedPublicIds) {
+      await deleteCloudinaryImageByPublicId(publicId);
     }
 
     if (deleteInputOnError) {
