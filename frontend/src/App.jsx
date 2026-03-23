@@ -42,7 +42,7 @@ const router = createBrowserRouter(
         <Route path="profile" element={<Profile />} />
       </Route>
 
-      <Route element={<RoleRoute allowedRoles={["admin, seller"]} />}>
+      <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
         <Route path="seller/products" element={<MyProducts />} />
         <Route path="seller/products/:id" element={<ManageProduct />} />
       </Route>

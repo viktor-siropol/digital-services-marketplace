@@ -5,6 +5,7 @@ import { deleteManyLocalFiles } from "../utilites/localFileUtils.js";
 import { deleteManyCloudinaryProductImages } from "../utilites/cloudinaryProductImages.js";
 import { localFilesExist } from "../utilites/localFileUtils.js";
 import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
+import { formatProductForClient } from "../utilites/formatProductForClient.js";
 
 const slugify = (text) =>
   text
@@ -113,7 +114,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw new Error("Failed to enqueue image processing job");
   }
 
-  res.status(201).json(product);
+  res.status(201).json(formatProductForClient(product));
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -203,7 +204,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     images: removedImages,
   });
 
-  res.json(updatedProduct);
+  res.json(formatProductForClient(updatedProduct));
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
@@ -233,54 +234,51 @@ export const deleteProduct = asyncHandler(async (req, res) => {
 });
 
 export const getPublicProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({ status: "ready" })
-    .select("-tempUploads -processingError")
-    .sort({ createdAt: -1 });
+  const products = await Product.find({ status: "ready" }).sort({
+    createdAt: -1,
+  });
 
-  res.json(products);
+  res.json(
+    products.map((product) =>
+      formatProductForClient(product, { includeProcessingMeta: false }),
+    ),
+  );
 });
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const product = await Product.findOne({
     _id: req.params.id,
     status: "ready",
-  }).select("-tempUploads -processingError");
+  });
 
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
   }
 
-  const slugMatches = !req.params.slug || req.params.slug === product.slug;
-  const canonicalPath = `/products/${product._id}/${product.slug}`;
-
-  res.json({
-    product,
-    slugMatches,
-    canonicalPath,
-  });
+  res.json(formatProductForClient(product, { includeProcessingMeta: false }));
 });
 
 export const getMyProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({ seller: req.user._id })
-    .select("-tempUploads")
-    .sort({ createdAt: -1 });
+  const products = await Product.find({ seller: req.user._id }).sort({
+    createdAt: -1,
+  });
 
-  res.json(products);
+  res.json(products.map((product) => formatProductForClient(product)));
 });
 
 export const getMyProductById = asyncHandler(async (req, res) => {
   const product = await Product.findOne({
     _id: req.params.id,
     seller: req.user._id,
-  }).select("-tempUploads");
+  });
 
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
   }
 
-  res.json(product);
+  res.json(formatProductForClient(product));
 });
 
 export const retryProductImageProcessing = asyncHandler(async (req, res) => {
