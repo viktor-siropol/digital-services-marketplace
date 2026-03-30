@@ -42,7 +42,7 @@ const ProductProcessingPanel = ({ product }) => {
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
             <p className="font-medium">Image processing failed.</p>
             {product.processingError ? (
-              <p className="mt-1 break-words">{product.processingError}</p>
+              <p className="mt-1 wrap-break-word">{product.processingError}</p>
             ) : (
               <p className="mt-1">Unknown processing error.</p>
             )}

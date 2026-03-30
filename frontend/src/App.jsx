@@ -13,18 +13,39 @@ import Register from "./pages/Auth/Register";
 import ProtectedRoutes from "./components/ProtectedRoutes";
 import RoleRoute from "./components/RoleRoute";
 import Profile from "./pages/User/Profile";
-import Shop from "./pages/User/shop";
+import Shop from "./pages/User/Shop";
 import UserList from "./pages/Admin/UserList";
 import CategoryList from "./pages/Admin/CategoryList";
 import MyProducts from "./pages/Seller/MyProducts";
 import ManageProduct from "./pages/Seller/ManageProduct";
+import CreateProduct from "./pages/Seller/CreateProduct";
 
 const Layout = () => {
   return (
     <>
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={2800}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        style={{
+          top: "76px",
+          right: "16px",
+          zIndex: 40,
+        }}
+        toastStyle={{
+          borderRadius: "18px",
+          background: "#ffffff",
+          color: "#0f172a",
+          border: "1px solid rgba(226,232,240,0.95)",
+          boxShadow: "0 12px 30px rgba(15,23,42,0.10)",
+          backdropFilter: "none",
+        }}
+      />
       <Navigation />
-      <main className="py-3">
+      <main className="min-h-[calc(100vh-64px)]">
         <Outlet />
       </main>
     </>
@@ -44,6 +65,7 @@ const router = createBrowserRouter(
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
         <Route path="seller/products" element={<MyProducts />} />
+        <Route path="seller/products/new" element={<CreateProduct />} />
         <Route path="seller/products/:id" element={<ManageProduct />} />
       </Route>
 

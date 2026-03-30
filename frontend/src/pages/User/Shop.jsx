@@ -2,25 +2,8 @@ import React from "react";
 
 const Shop = () => {
   return (
-    <div>
-      <section className="max-w-sm mx-auto">
-        <div>
-          <form className="">
-            <div>
-              <label htmlFor="email" className="block">
-                email
-              </label>
-              <input className="border rounded-md" id="email" />
-            </div>
-            <div>
-              <label htmlFor="password" className="block">
-                password
-              </label>
-              <input className="border rounded-md" id="password" />
-            </div>
-          </form>
-        </div>
-      </section>
+    <div className="flex h-[calc(100vh-80px)] justify-center items-center text-3xl">
+      <h1>Shop Soon ...</h1>
     </div>
   );
 };

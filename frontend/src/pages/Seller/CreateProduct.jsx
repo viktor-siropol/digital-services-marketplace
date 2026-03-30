@@ -1,41 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import {
-  useGetMyProductByIdQuery,
-  useUpdateProductMutation,
-} from "../../redux/api/productApiSlice";
-import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
-import { toast } from "react-toastify";
+import { useAddProductMutation } from "../../redux/api/productApiSlice";
+import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
 
-const statusStyles = {
-  ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  processing: "bg-amber-50 text-amber-700 border-amber-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
-};
-
-const ManageProduct = () => {
-  const { id } = useParams();
-
-  const {
-    data: product,
-    isLoading,
-    error,
-    refetch,
-    isFetching,
-  } = useGetMyProductByIdQuery(id, {
-    refetchOnMountOrArgChange: true,
-  });
-
-  const {
-    data: categories = [],
-    isLoading: loadingCategories,
-    error: categoriesError,
-  } = useGetCategoriesQuery();
-
-  const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
+const CreateProduct = () => {
+  const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
@@ -44,22 +17,25 @@ const ManageProduct = () => {
   const [quantity, setQuantity] = useState("");
   const [countInStock, setCountInStock] = useState("");
   const [description, setDescription] = useState("");
-
-  const [existingImages, setExistingImages] = useState([]);
-  const [existingImagesDirty, setExistingImagesDirty] = useState(false);
-  const [newImages, setNewImages] = useState([]);
+  const [images, setImages] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
 
-  const initializedProductIdRef = useRef(null);
-  const newImagesRef = useRef([]);
+  const imagesRef = useRef([]);
+
+  const [addProduct, { isLoading: creating }] = useAddProductMutation();
+  const {
+    data: categories = [],
+    isLoading: loadingCategories,
+    error: categoriesError,
+  } = useGetCategoriesQuery();
 
   useEffect(() => {
-    newImagesRef.current = newImages;
-  }, [newImages]);
+    imagesRef.current = images;
+  }, [images]);
 
   useEffect(() => {
     return () => {
-      newImagesRef.current.forEach((item) => {
+      imagesRef.current.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl);
         }
@@ -67,43 +43,7 @@ const ManageProduct = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!product) return;
-
-    if (initializedProductIdRef.current !== product._id) {
-      setName(product.name || "");
-      setBrand(product.brand || "");
-      setCategory(product.category?._id || product.category || "");
-      setPrice(product.price || "");
-      setQuantity(product.quantity || "");
-      setCountInStock(product.countInStock || "");
-      setDescription(product.description || "");
-      setExistingImages(product.images || []);
-      setExistingImagesDirty(false);
-      setNewImages([]);
-      setPreviewImage(null);
-      initializedProductIdRef.current = product._id;
-    }
-  }, [product]);
-
-  useEffect(() => {
-    if (!product) return;
-    if (existingImagesDirty) return;
-
-    setExistingImages(product.images || []);
-  }, [product?.images, product?.status, existingImagesDirty, product]);
-
-  useEffect(() => {
-    if (product?.status !== "processing") return;
-
-    const interval = setInterval(() => {
-      refetch();
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [product?.status, refetch]);
-
-  const handleNewImagesChange = (e) => {
+  const imagesChangeHandler = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
 
     if (!selectedFiles.length) {
@@ -116,17 +56,12 @@ const ManageProduct = () => {
       previewUrl: URL.createObjectURL(file),
     }));
 
-    setNewImages((prev) => [...prev, ...mappedFiles]);
+    setImages((prev) => [...prev, ...mappedFiles]);
     e.target.value = "";
   };
 
-  const removeExistingImage = (imageId) => {
-    setExistingImagesDirty(true);
-    setExistingImages((prev) => prev.filter((img) => img.imageId !== imageId));
-  };
-
-  const removeNewImage = (id) => {
-    setNewImages((prev) => {
+  const removeImageHandler = (id) => {
+    setImages((prev) => {
       const imageToRemove = prev.find((img) => img.id === id);
 
       if (imageToRemove?.previewUrl) {
@@ -137,42 +72,46 @@ const ManageProduct = () => {
     });
   };
 
-  const originalImageIds = useMemo(
-    () =>
-      (product?.images || [])
-        .map((img) => img.imageId)
-        .sort()
-        .join("|"),
-    [product],
-  );
-
-  const currentImageIds = useMemo(
-    () =>
-      existingImages
-        .map((img) => img.imageId)
-        .sort()
-        .join("|"),
-    [existingImages],
-  );
-
-  const imagesChanged =
-    originalImageIds !== currentImageIds || newImages.length > 0;
-
-  const hasChanges =
-    name !== (product?.name || "") ||
-    brand !== (product?.brand || "") ||
-    category !== (product?.category?._id || product?.category || "") ||
-    String(price) !== String(product?.price || "") ||
-    String(quantity) !== String(product?.quantity || "") ||
-    String(countInStock) !== String(product?.countInStock || "") ||
-    description !== (product?.description || "") ||
-    imagesChanged;
-
   const submitHandler = async (e) => {
     e.preventDefault();
 
-    if (!hasChanges) {
-      toast.info("No changes to save");
+    if (!name.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+
+    if (!brand.trim()) {
+      toast.error("Brand is required");
+      return;
+    }
+
+    if (!category) {
+      toast.error("Category is required");
+      return;
+    }
+
+    if (!price) {
+      toast.error("Price is required");
+      return;
+    }
+
+    if (!quantity) {
+      toast.error("Quantity is required");
+      return;
+    }
+
+    if (!countInStock) {
+      toast.error("Count in stock is required");
+      return;
+    }
+
+    if (!description.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+
+    if (!images.length) {
+      toast.error("At least one image is required");
       return;
     }
 
@@ -185,124 +124,82 @@ const ManageProduct = () => {
     formData.append("quantity", quantity);
     formData.append("countInStock", countInStock);
     formData.append("description", description);
-    formData.append(
-      "retainedImageIds",
-      JSON.stringify(existingImages.map((img) => img.imageId)),
-    );
 
-    for (const image of newImages) {
+    for (const image of images) {
       formData.append("images", image.file);
     }
 
     try {
-      const updatedProduct = await updateProduct({ id, formData }).unwrap();
+      const createdProduct = await addProduct(formData).unwrap();
 
-      toast.success("Product updated successfully");
+      toast.success("Product created. Image processing started.");
 
-      setName(updatedProduct.name || "");
-      setBrand(updatedProduct.brand || "");
-      setCategory(
-        updatedProduct.category?._id || updatedProduct.category || "",
-      );
-      setPrice(updatedProduct.price || "");
-      setQuantity(updatedProduct.quantity || "");
-      setCountInStock(updatedProduct.countInStock || "");
-      setDescription(updatedProduct.description || "");
-      setExistingImages(updatedProduct.images || []);
-      setExistingImagesDirty(false);
-
-      newImages.forEach((item) => {
+      images.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl);
         }
       });
 
-      setNewImages([]);
+      setName("");
+      setBrand("");
+      setCategory("");
+      setPrice("");
+      setQuantity("");
+      setCountInStock("");
+      setDescription("");
+      setImages([]);
       setPreviewImage(null);
     } catch (error) {
-      toast.error(error?.data?.message || "Updating product failed");
+      toast.error(
+        error?.data?.message || error?.error || "Failed to create product",
+      );
     }
   };
-
-  if (isLoading || loadingCategories) {
-    return (
-      <div className="flex h-screen items-center justify-center p-6">
-        <Loader />
-      </div>
-    );
-  }
-
-  if (error || categoriesError) {
-    return (
-      <div className="p-6">
-        <Message variant="danger">
-          {error?.data?.message ||
-            categoriesError?.data?.message ||
-            error?.error ||
-            categoriesError?.error ||
-            "Failed to load product data"}
-        </Message>
-      </div>
-    );
-  }
 
   return (
     <div className="relative z-0 min-h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-slate-200/30 blur-3xl" />
-        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/30 blur-3xl" />
+        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-violet-300/25 blur-3xl" />
+        <div className="absolute right-0 top-24 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-200/20 blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-3 py-1 text-xs font-medium text-violet-700 shadow-sm backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-violet-500" />
-              Seller workspace
-            </div>
-
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-              Edit Product
-            </h1>
-
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Edit product details, manage current images, and upload new ones.
-            </p>
+        <div className="mb-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-3 py-1 text-xs font-medium text-violet-700 shadow-sm backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-violet-500" />
+            Seller workspace
           </div>
 
-          <div
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-              statusStyles[product?.status] || statusStyles.processing
-            }`}
-          >
-            {product?.status || "processing"}
-          </div>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
+            Create Product
+          </h1>
+
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
+            Create a new listing and add the product details below.
+          </p>
         </div>
 
+        {(loadingCategories || creating) && <Loader />}
+
+        {categoriesError && (
+          <Message variant="danger">
+            {categoriesError?.data?.message ||
+              categoriesError?.error ||
+              "Failed to load categories"}
+          </Message>
+        )}
+
         <form
-          className="overflow-hidden rounded-3xl border border-white/70 bg-white/80 shadow-[0_16px_48px_rgba(15,23,42,0.08)] backdrop-blur"
           onSubmit={submitHandler}
+          className="overflow-hidden rounded-3xl border border-white/70 bg-white/80 shadow-[0_16px_48px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <div className="border-b border-slate-100 bg-linear-to-r from-violet-50 via-fuchsia-50 to-cyan-50 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-700">
-                  Product editor
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {product?.status === "processing"
-                    ? "Images are being refreshed automatically while processing runs."
-                    : "Changes are saved to the product and image set together."}
-                </p>
-              </div>
-
-              {product?.status === "processing" && (
-                <span className="text-xs font-medium text-amber-700">
-                  {isFetching ? "Syncing..." : "Auto-refresh on"}
-                </span>
-              )}
-            </div>
+            <p className="text-sm font-medium text-slate-700">Product draft</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Start with core details, then attach images for background
+              processing.
+            </p>
           </div>
 
           <div className="space-y-4 p-4">
@@ -412,72 +309,11 @@ const ManageProduct = () => {
             <div className="rounded-2xl border border-violet-100 bg-linear-to-br from-violet-50/80 to-cyan-50/80 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="block text-sm font-medium text-slate-700">
-                  Current images
+                  Product images
                 </label>
 
                 <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-violet-700 shadow-sm">
-                  {existingImages.length} current
-                </span>
-              </div>
-
-              {existingImages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-3 py-6 text-center text-sm text-slate-500">
-                  {product?.status === "processing"
-                    ? "Images are still processing. This section refreshes automatically."
-                    : "No current images."}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {existingImages.map((image) => (
-                    <div
-                      key={image.imageId}
-                      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewImage({
-                            src:
-                              image.medium || image.original || image.thumbnail,
-                            name: image.alt || image.imageId,
-                            blurDataURL: image.blurDataURL,
-                          })
-                        }
-                        className="block w-full text-left"
-                      >
-                        <ProductImagePreview
-                          src={
-                            image.thumbnail || image.medium || image.original
-                          }
-                          blurDataURL={image.blurDataURL}
-                          alt={image.alt || image.imageId}
-                          className="h-24 w-full object-cover"
-                          wrapperClassName="h-24 w-full"
-                        />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => removeExistingImage(image.imageId)}
-                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-medium text-rose-600 shadow hover:bg-white"
-                        aria-label="Remove current image"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Add new images
-                </label>
-
-                <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
-                  {newImages.length} new
+                  {images.length} selected
                 </span>
               </div>
 
@@ -485,17 +321,17 @@ const ManageProduct = () => {
                 type="file"
                 multiple
                 accept="image/png,image/jpeg,image/webp"
-                onChange={handleNewImagesChange}
+                onChange={imagesChangeHandler}
                 className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
               />
 
               <p className="mt-2 text-xs text-slate-500">
-                Update product details, pricing, stock and media.
+                PNG, JPG or WEBP. You can add files in multiple steps.
               </p>
 
-              {newImages.length > 0 && (
+              {images.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {newImages.map((image) => (
+                  {images.map((image) => (
                     <div
                       key={image.id}
                       className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -531,9 +367,9 @@ const ManageProduct = () => {
 
                       <button
                         type="button"
-                        onClick={() => removeNewImage(image.id)}
+                        onClick={() => removeImageHandler(image.id)}
                         className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-medium text-rose-600 shadow hover:bg-white"
-                        aria-label="Remove new image"
+                        aria-label="Remove selected image"
                       >
                         ×
                       </button>
@@ -546,10 +382,10 @@ const ManageProduct = () => {
             <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                disabled={updating || !hasChanges}
+                disabled={creating}
                 className="inline-flex items-center rounded-2xl bg-linear-to-r from-violet-600 to-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-[0_10px_24px_rgba(99,102,241,0.28)] transition hover:from-violet-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {updating ? "Updating..." : "Update product"}
+                {creating ? "Creating..." : "Create product"}
               </button>
             </div>
           </div>
@@ -586,4 +422,4 @@ const ManageProduct = () => {
   );
 };
 
-export default ManageProduct;
+export default CreateProduct;

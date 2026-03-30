@@ -1,11 +1,14 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import { processProductImages } from "../utilites/processProductImages.js";
-import { deleteManyLocalFiles } from "../utilites/localFileUtils.js";
+import {
+  deleteManyLocalFiles,
+  localFilesExist,
+} from "../utilites/localFileUtils.js";
 import { deleteManyCloudinaryProductImages } from "../utilites/cloudinaryProductImages.js";
-import { localFilesExist } from "../utilites/localFileUtils.js";
 import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
 import { formatProductForClient } from "../utilites/formatProductForClient.js";
+import { logError } from "../utilites/logError.js";
 
 const slugify = (text) =>
   text
@@ -33,6 +36,24 @@ const generateUniqueSlug = async ({ sellerId, name, excludeId }) => {
   }
 
   return slug;
+};
+
+const parseRetainedImageIds = (value, fallback = []) => {
+  if (typeof value === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("retainedImageIds must be an array");
+    }
+
+    return parsed;
+  } catch {
+    throw new Error("retainedImageIds must be a valid JSON array");
+  }
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -110,6 +131,17 @@ export const createProduct = asyncHandler(async (req, res) => {
     await deleteManyLocalFiles(tempUploads);
     await Product.deleteOne({ _id: product._id });
 
+    logError({
+      level: "error",
+      scope: "createProduct.enqueueImageProcessingJob",
+      message: "Failed to enqueue image processing job",
+      error,
+      meta: {
+        productId: product._id.toString(),
+        sellerId: sellerId.toString(),
+      },
+    });
+
     res.status(500);
     throw new Error("Failed to enqueue image processing job");
   }
@@ -128,23 +160,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  let retainedImageIds = product.images.map((img) => img.imageId);
-
-  if (typeof req.body.retainedImageIds !== "undefined") {
-    try {
-      const parsed = JSON.parse(req.body.retainedImageIds);
-
-      if (!Array.isArray(parsed)) {
-        res.status(400);
-        throw new Error("retainedImageIds must be a JSON array");
-      }
-
-      retainedImageIds = parsed;
-    } catch (error) {
-      res.status(400);
-      throw new Error("retainedImageIds must be a valid JSON array");
-    }
-  }
+  const retainedImageIds = parseRetainedImageIds(
+    req.body.retainedImageIds,
+    product.images.map((img) => img.imageId),
+  );
 
   const keptImages = product.images.filter((img) =>
     retainedImageIds.includes(img.imageId),
@@ -154,20 +173,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
     (img) => !retainedImageIds.includes(img.imageId),
   );
 
-  if (keptImages.length === 0 && (!req.files || req.files.length === 0)) {
+  let newProcessedImages = [];
+
+  if (req.files?.length) {
+    newProcessedImages = await processProductImages(req.files, {
+      sellerId: req.user._id.toString(),
+      productId: product._id.toString(),
+      deleteInputOnSuccess: true,
+      deleteInputOnError: true,
+    });
+  }
+
+  if (keptImages.length === 0 && newProcessedImages.length === 0) {
     res.status(400);
     throw new Error("Product must have at least one image");
   }
-
-  const newImages =
-    req.files && req.files.length > 0
-      ? await processProductImages(req.files, {
-          sellerId: req.user._id.toString(),
-          productId: product._id.toString(),
-          deleteInputOnSuccess: true,
-          deleteInputOnError: true,
-        })
-      : [];
 
   if (req.body.name && req.body.name.trim() !== product.name) {
     const newName = req.body.name.trim();
@@ -194,7 +214,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       : product.countInStock;
   product.description = req.body.description ?? product.description;
 
-  product.images = [...keptImages, ...newImages];
+  product.images = [...keptImages, ...newProcessedImages];
 
   const updatedProduct = await product.save();
 
@@ -228,6 +248,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     productId: product._id.toString(),
     images: imagesToDelete,
   });
+
   await deleteManyLocalFiles(tempUploadsToDelete);
 
   res.json({ message: "Product deleted successfully" });
@@ -333,6 +354,17 @@ export const retryProductImageProcessing = asyncHandler(async (req, res) => {
     product.processingError =
       previousError || "Failed to enqueue retry image processing job";
     await product.save();
+
+    logError({
+      level: "error",
+      scope: "retryProductImageProcessing.enqueueImageProcessingJob",
+      message: "Failed to enqueue retry image processing job",
+      error,
+      meta: {
+        productId: product._id.toString(),
+        sellerId: req.user._id.toString(),
+      },
+    });
 
     res.status(500);
     throw new Error("Failed to enqueue retry image processing job");

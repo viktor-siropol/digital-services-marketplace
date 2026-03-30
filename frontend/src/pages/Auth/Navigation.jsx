@@ -36,7 +36,7 @@ const Navigation = () => {
   }, []);
 
   return (
-    <header className="h-16 px-6 flex items-center justify-between bg-white border-b border-gray-100">
+    <header className="relative z-50 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-6 backdrop-blur">
       <Link to="/" className="inline-block">
         <img src={logo} alt="BitMarket" className="h-18  w-auto" />
       </Link>
@@ -76,7 +76,7 @@ const Navigation = () => {
               {userInfo.username.charAt(0).toUpperCase()}
             </button>
             {isOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-md border border-gray-100">
+              <div className="absolute right-0 z-60 mt-2 w-44 rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur">
                 <button
                   onClick={() => {
                     navigate("/profile");
@@ -85,6 +85,24 @@ const Navigation = () => {
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
                 >
                   Profile
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/seller/products");
+                    setIsOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  MyProducts
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/seller/products/new");
+                    setIsOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  Create Product
                 </button>
                 {userInfo.isAdmin && (
                   <div>
