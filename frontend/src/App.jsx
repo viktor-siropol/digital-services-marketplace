@@ -57,9 +57,9 @@ const router = createBrowserRouter(
     <Route path="/" element={<Layout />}>
       <Route path="login" element={<Login />} />
       <Route path="register" element={<Register />} />
+      <Route path="shop" element={<Shop />} />
 
       <Route element={<ProtectedRoutes />}>
-        <Route path="shop" element={<Shop />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

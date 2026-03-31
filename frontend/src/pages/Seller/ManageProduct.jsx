@@ -512,11 +512,11 @@ const ManageProduct = () => {
                         className="block w-full text-left"
                       >
                         <ProductImagePreview
-                          src={previewImage.src}
-                          blurDataURL={previewImage.blurDataURL}
-                          alt={previewImage.name}
-                          wrapperClassName="h-[min(85vh,800px)] w-[min(90vw,1100px)] bg-slate-50"
-                          className="h-full w-full object-contain"
+                          src={image.previewUrl}
+                          blurDataURL={image.previewUrl}
+                          alt={image.file.name}
+                          wrapperClassName="aspect-square w-full bg-slate-50"
+                          className="h-full w-full object-cover"
                         />
 
                         <div className="p-2">

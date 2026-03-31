@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
@@ -27,6 +28,7 @@ const MyProducts = () => {
     refetchOnMountOrArgChange: true,
   });
 
+  const [productToDelete, setProductToDelete] = useState(null);
   const [deleteProduct, { isLoading: deleting }] = useDeleteProductMutation();
   const [retryProcessing, { isLoading: retrying }] =
     useRetryProductImageProcessingMutation();
@@ -45,16 +47,22 @@ const MyProducts = () => {
     return () => clearInterval(interval);
   }, [hasProcessingProducts, refetch]);
 
-  const deleteHandler = async (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this product?",
-    );
+  const openDeleteDialog = (product) => {
+    setProductToDelete(product);
+  };
 
-    if (!confirmed) return;
+  const closeDeleteDialog = () => {
+    if (deleting) return;
+    setProductToDelete(null);
+  };
+
+  const confirmDeleteHandler = async () => {
+    if (!productToDelete) return;
 
     try {
-      await deleteProduct(id).unwrap();
+      await deleteProduct(productToDelete._id).unwrap();
       toast.success("Product deleted successfully.");
+      setProductToDelete(null);
     } catch (err) {
       toast.error(err?.data?.message || "Failed to delete product");
     }
@@ -208,6 +216,9 @@ const MyProducts = () => {
                           </span>
 
                           <span className="text-xs text-slate-500">
+                            Quantity: {product.quantity}
+                          </span>
+                          <span className="text-xs text-slate-500">
                             Stock: {product.countInStock}
                           </span>
 
@@ -246,7 +257,7 @@ const MyProducts = () => {
 
                       <button
                         type="button"
-                        onClick={() => deleteHandler(product._id)}
+                        onClick={() => openDeleteDialog(product)}
                         disabled={deleting}
                         className="inline-flex items-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -260,6 +271,21 @@ const MyProducts = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(productToDelete)}
+        title="Delete product?"
+        description={
+          productToDelete
+            ? `This will permanently delete "${productToDelete.name}". This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDeleteHandler}
+        onCancel={closeDeleteDialog}
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 };
