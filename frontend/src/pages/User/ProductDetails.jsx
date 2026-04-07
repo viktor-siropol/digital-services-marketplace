@@ -10,6 +10,7 @@ import {
   useGetPublicProductByIdQuery,
   useGetPublicProductsQuery,
 } from "../../redux/api/productApiSlice";
+import { addToCart } from "../../redux/features/cart/cartSlice";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -307,6 +308,25 @@ const ProductDetails = () => {
     setPurchaseQuantity(value);
   };
 
+  const handleAddToCart = () => {
+    if (!product || maxPurchaseQuantity === 0) {
+      return;
+    }
+
+    dispatch(
+      addToCart({
+        product: product._id,
+        name: product.name,
+        image: cartPreviewImage,
+        price: Number(product.price),
+        countInStock: Number(product.countInStock),
+        qty: Number(purchaseQuantity),
+      }),
+    );
+
+    toast.success("Product added to cart");
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
@@ -556,6 +576,15 @@ const ProductDetails = () => {
                   </p>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={product.countInStock === 0}
+                className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Add to cart
+              </button>
 
               <Link
                 to="/cart"

@@ -15,6 +15,9 @@ import RoleRoute from "./components/RoleRoute";
 import Profile from "./pages/User/Profile";
 import Shop from "./pages/User/Shop";
 import ProductDetails from "./pages/User/ProductDetails";
+import Cart from "./pages/User/Cart";
+import MyOrders from "./pages/User/MyOrders";
+import OrderDetails from "./pages/User/OrderDetails";
 import UserList from "./pages/Admin/UserList";
 import CategoryList from "./pages/Admin/CategoryList";
 import MyProducts from "./pages/Seller/MyProducts";
@@ -49,6 +52,7 @@ const router = createBrowserRouter(
     <Route path="/" element={<Layout />}>
       <Route index element={<Shop />} />
       <Route path="shop" element={<Shop />} />
+      <Route path="cart" element={<Cart />} />
       <Route path="products/:id" element={<ProductDetails />} />
 
       <Route path="login" element={<Login />} />
@@ -56,6 +60,8 @@ const router = createBrowserRouter(
 
       <Route element={<ProtectedRoutes />}>
         <Route path="profile" element={<Profile />} />
+        <Route path="my-orders" element={<MyOrders />} />
+        <Route path="my-orders/:id" element={<OrderDetails />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
