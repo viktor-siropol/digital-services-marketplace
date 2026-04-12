@@ -14,6 +14,7 @@ import ProtectedRoutes from "./components/ProtectedRoutes";
 import RoleRoute from "./components/RoleRoute";
 import Profile from "./pages/User/Profile";
 import Shop from "./pages/User/Shop";
+import ProductDetails from "./pages/User/ProductDetails";
 import UserList from "./pages/Admin/UserList";
 import CategoryList from "./pages/Admin/CategoryList";
 import MyProducts from "./pages/Seller/MyProducts";
@@ -30,21 +31,12 @@ const Layout = () => {
         closeOnClick
         pauseOnHover
         draggable
-        style={{
-          top: "76px",
-          right: "16px",
-          zIndex: 40,
-        }}
-        toastStyle={{
-          borderRadius: "18px",
-          background: "#ffffff",
-          color: "#0f172a",
-          border: "1px solid rgba(226,232,240,0.95)",
-          boxShadow: "0 12px 30px rgba(15,23,42,0.10)",
-          backdropFilter: "none",
-        }}
+        className="app-toast-container top-16!"
+        toastClassName="app-toast"
       />
+
       <Navigation />
+
       <main className="min-h-[calc(100vh-64px)]">
         <Outlet />
       </main>
@@ -55,9 +47,12 @@ const Layout = () => {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />}>
+      <Route index element={<Shop />} />
+      <Route path="shop" element={<Shop />} />
+      <Route path="products/:id" element={<ProductDetails />} />
+
       <Route path="login" element={<Login />} />
       <Route path="register" element={<Register />} />
-      <Route path="shop" element={<Shop />} />
 
       <Route element={<ProtectedRoutes />}>
         <Route path="profile" element={<Profile />} />

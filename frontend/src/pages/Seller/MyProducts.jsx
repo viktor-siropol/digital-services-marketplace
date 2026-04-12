@@ -99,9 +99,9 @@ const MyProducts = () => {
   return (
     <div className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-violet-300/25 blur-3xl" />
-        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/30 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-200/20 blur-3xl" />
+        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-violet-200/30" />
+        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/40" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-100/30" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-6">

@@ -9,11 +9,19 @@ import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
 import { toast } from "react-toastify";
+import { IoClose } from "react-icons/io5";
 
 const statusStyles = {
   ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
   processing: "bg-amber-50 text-amber-700 border-amber-200",
   failed: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
+const overlayIconStyle = {
+  stroke: "rgba(0,0,0,0.95)",
+  strokeWidth: 18,
+  filter:
+    "drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 1px 3px rgba(0,0,0,0.85))",
 };
 
 const ManageProduct = () => {
@@ -249,9 +257,9 @@ const ManageProduct = () => {
   return (
     <div className="relative z-0 min-h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-slate-200/30 blur-3xl" />
-        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/30 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-200/20 blur-3xl" />
+        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-violet-200/30" />
+        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/40" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-100/30" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-6">
@@ -568,10 +576,13 @@ const ManageProduct = () => {
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg font-semibold text-slate-700 shadow hover:bg-white"
+              className="absolute right-4 top-4 z-10 p-1 transition hover:scale-105"
               aria-label="Close preview"
             >
-              ×
+              <IoClose
+                className="text-[42px] text-white"
+                style={overlayIconStyle}
+              />
             </button>
 
             <img

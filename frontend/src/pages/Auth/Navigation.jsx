@@ -86,24 +86,29 @@ const Navigation = () => {
                 >
                   Profile
                 </button>
-                <button
-                  onClick={() => {
-                    navigate("/seller/products");
-                    setIsOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
-                >
-                  MyProducts
-                </button>
-                <button
-                  onClick={() => {
-                    navigate("/seller/products/new");
-                    setIsOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
-                >
-                  Create Product
-                </button>
+                {(userInfo.isAdmin || userInfo.isSeller) && (
+                  <div>
+                    <button
+                      onClick={() => {
+                        navigate("/seller/products");
+                        setIsOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      MyProducts
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate("/seller/products/new");
+                        setIsOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      Create Product
+                    </button>
+                  </div>
+                )}
+
                 {userInfo.isAdmin && (
                   <div>
                     <button
