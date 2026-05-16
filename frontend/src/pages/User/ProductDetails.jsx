@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useParams } from "react-router-dom";
+import { FaRegStar, FaStar } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
+import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductCard from "../../components/ProductCard";
 import ProductImagePreview from "../../components/ProductImagePreview";
 import {
+  useCreateProductReviewMutation,
   useGetPublicProductByIdQuery,
   useGetPublicProductsQuery,
 } from "../../redux/api/productApiSlice";
 import { addToCart } from "../../redux/features/cart/cartSlice";
-import { Link } from "react-router-dom";
-import { toast } from "react-toastify";
 
 const overlayIconStyle = {
   stroke: "rgba(0,0,0,0.95)",
@@ -180,24 +181,90 @@ const getSuggestedProducts = ({ currentProduct, products, limit = 6 }) => {
   return selected;
 };
 
+const RatingStars = ({
+  value,
+  buttonMode = false,
+  onSelect = null,
+  iconClassName = "text-sm",
+}) => {
+  const roundedValue = Math.round(Number(value || 0));
+
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }, (_, index) => {
+        const filled = index < roundedValue;
+
+        if (buttonMode) {
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={() => onSelect?.(index + 1)}
+              className={`transition ${
+                filled
+                  ? "text-amber-400"
+                  : "text-slate-300 hover:text-amber-300"
+              }`}
+              aria-label={`Set rating to ${index + 1}`}
+            >
+              {filled ? (
+                <FaStar className={iconClassName} />
+              ) : (
+                <FaRegStar className={iconClassName} />
+              )}
+            </button>
+          );
+        }
+
+        return filled ? (
+          <FaStar key={index} className={`${iconClassName} text-amber-400`} />
+        ) : (
+          <FaRegStar
+            key={index}
+            className={`${iconClassName} text-slate-300`}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+const formatReviewDate = (value) => {
+  if (!value) return "—";
+
+  return new Date(value).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
 const ProductDetails = () => {
   const dispatch = useDispatch();
+  const { userInfo } = useSelector((state) => state.auth);
   const { id } = useParams();
 
   const { data: product, isLoading, error } = useGetPublicProductByIdQuery(id);
 
   const { data: publicProducts = [] } = useGetPublicProductsQuery();
 
+  const [createProductReview, { isLoading: creatingReview }] =
+    useCreateProductReviewMutation();
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeSection, setActiveSection] = useState("description");
   const [previewImage, setPreviewImage] = useState(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
 
   useEffect(() => {
     setSelectedImageIndex(0);
     setActiveSection("description");
     setPreviewImage(null);
     setPurchaseQuantity(1);
+    setReviewRating(5);
+    setReviewComment("");
   }, [product?._id]);
 
   const selectedImage = product?.images?.[selectedImageIndex] || null;
@@ -251,6 +318,19 @@ const ProductDetails = () => {
       limit: 6,
     });
   }, [product, publicProducts]);
+
+  const sortedReviews = useMemo(() => {
+    return [...(product?.reviews || [])].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [product?.reviews]);
+
+  const hasUserReviewed = useMemo(() => {
+    if (!userInfo?._id || !product?.reviews?.length) return false;
+
+    return product.reviews.some((review) => review.user === userInfo._id);
+  }, [product?.reviews, userInfo?._id]);
 
   const maxPurchaseQuantity = Math.max(0, Number(product?.countInStock || 0));
 
@@ -325,6 +405,38 @@ const ProductDetails = () => {
     );
 
     toast.success("Product added to cart");
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!userInfo) {
+      toast.error("Please sign in to leave a review");
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      toast.error("Review comment is required");
+      return;
+    }
+
+    try {
+      await createProductReview({
+        productId: product._id,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      }).unwrap();
+
+      toast.success("Review submitted successfully");
+      setReviewRating(5);
+      setReviewComment("");
+    } catch (reviewError) {
+      toast.error(
+        reviewError?.data?.message ||
+          reviewError?.error ||
+          "Failed to submit review",
+      );
+    }
   };
 
   if (isLoading) {
@@ -418,14 +530,14 @@ const ProductDetails = () => {
 
                 <button
                   type="button"
-                  onClick={() => setActiveSection("comments")}
+                  onClick={() => setActiveSection("reviews")}
                   className={`px-5 py-4 text-sm font-medium transition ${
-                    activeSection === "comments"
+                    activeSection === "reviews"
                       ? "bg-slate-900 text-white"
                       : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  Comments
+                  Reviews
                 </button>
               </div>
 
@@ -442,15 +554,190 @@ const ProductDetails = () => {
                   </div>
                 ) : (
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      Comments
-                    </h2>
+                    <div className="flex flex-col gap-6">
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">
+                          Customer reviews
+                        </h2>
 
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                      <p className="text-sm text-slate-500">
-                        Comments and ratings will be added here in the next
-                        step.
-                      </p>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <p className="text-sm text-slate-500">
+                              Average rating
+                            </p>
+
+                            <div className="mt-3 flex items-center gap-3">
+                              <span className="text-3xl font-semibold text-slate-900">
+                                {Number(product.rating || 0).toFixed(1)}
+                              </span>
+
+                              <div>
+                                <RatingStars
+                                  value={product.rating}
+                                  iconClassName="text-base"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Based on {product.numReviews}{" "}
+                                  {product.numReviews === 1
+                                    ? "review"
+                                    : "reviews"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <p className="text-sm text-slate-500">
+                              Review policy
+                            </p>
+
+                            <p className="mt-3 text-sm leading-6 text-slate-700">
+                              Only customers who purchased and paid for this
+                              product can leave a review.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <h3 className="text-base font-semibold text-slate-900">
+                            Write a review
+                          </h3>
+
+                          {!userInfo ? (
+                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-sm text-slate-600">
+                                Sign in to submit a review after your purchase.
+                              </p>
+
+                              <Link
+                                to={`/login?redirect=/products/${product._id}`}
+                                className="mt-4 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                              >
+                                Sign in
+                              </Link>
+                            </div>
+                          ) : hasUserReviewed ? (
+                            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                              <p className="text-sm text-emerald-800">
+                                You have already reviewed this product.
+                              </p>
+                            </div>
+                          ) : (
+                            <form
+                              onSubmit={handleReviewSubmit}
+                              className="mt-4"
+                            >
+                              <div>
+                                <label className="text-sm font-medium text-slate-700">
+                                  Rating
+                                </label>
+
+                                <div className="mt-2 flex items-center gap-3">
+                                  <RatingStars
+                                    value={reviewRating}
+                                    buttonMode
+                                    onSelect={setReviewRating}
+                                    iconClassName="text-xl"
+                                  />
+
+                                  <span className="text-sm font-medium text-slate-700">
+                                    {reviewRating}/5
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="mt-5">
+                                <label className="text-sm font-medium text-slate-700">
+                                  Comment
+                                </label>
+
+                                <textarea
+                                  rows="5"
+                                  value={reviewComment}
+                                  onChange={(e) =>
+                                    setReviewComment(e.target.value)
+                                  }
+                                  placeholder="Share your experience with this product"
+                                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                                />
+                              </div>
+
+                              <p className="mt-4 text-xs leading-5 text-slate-500">
+                                Your review will only be accepted if you already
+                                purchased and paid for this product.
+                              </p>
+
+                              <button
+                                type="submit"
+                                disabled={creatingReview}
+                                className="mt-5 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {creatingReview
+                                  ? "Submitting..."
+                                  : "Submit review"}
+                              </button>
+                            </form>
+                          )}
+                        </div>
+
+                        <div>
+                          {sortedReviews.length === 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                              <h3 className="text-base font-semibold text-slate-900">
+                                No reviews yet
+                              </h3>
+                              <p className="mt-2 text-sm text-slate-500">
+                                Be the first verified customer to share feedback
+                                about this product.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {sortedReviews.map((review, index) => (
+                                <article
+                                  key={`${review.user}-${review.createdAt || index}`}
+                                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                                >
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-sm font-semibold text-slate-900">
+                                          {review.name || "Customer"}
+                                        </h3>
+
+                                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                          Verified purchase
+                                        </span>
+                                      </div>
+
+                                      <div className="mt-2 flex items-center gap-3">
+                                        <RatingStars
+                                          value={review.rating}
+                                          iconClassName="text-sm"
+                                        />
+
+                                        <span className="text-xs text-slate-500">
+                                          {formatReviewDate(review.createdAt)}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <span className="text-sm font-medium text-slate-700">
+                                      {review.rating}/5
+                                    </span>
+                                  </div>
+
+                                  <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
+                                    {review.comment}
+                                  </p>
+                                </article>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -509,6 +796,15 @@ const ProductDetails = () => {
                 >
                   {product.countInStock > 0 ? "Available" : "Out of stock"}
                 </span>
+              </div>
+
+              <div className="mt-4 flex items-center gap-3">
+                <RatingStars value={product.rating} iconClassName="text-sm" />
+                <p className="text-sm text-slate-500">
+                  {Number(product.rating || 0).toFixed(1)} ·{" "}
+                  {product.numReviews}{" "}
+                  {product.numReviews === 1 ? "review" : "reviews"}
+                </p>
               </div>
 
               <div className="mt-5 space-y-3 border-t border-slate-100 pt-5 text-sm text-slate-600">

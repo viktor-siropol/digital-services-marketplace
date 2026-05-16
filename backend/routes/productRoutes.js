@@ -2,6 +2,7 @@ import express from "express";
 import { authenticate } from "../middlewares/authMiddleware.js";
 import {
   createProduct,
+  createProductReview,
   updateProduct,
   deleteProduct,
   getPublicProducts,
@@ -20,6 +21,7 @@ router
   .post(authenticate, upload.array("images", 8), createProduct);
 
 router.get("/p/:id", getPublicProductById);
+router.post("/:id/reviews", authenticate, createProductReview);
 
 router.get("/mine", authenticate, getMyProducts);
 router.get("/manage/:id", authenticate, getMyProductById);

@@ -1,5 +1,6 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
+import Order from "../models/orderModel.js";
 import { processProductImages } from "../utilites/processProductImages.js";
 import {
   deleteManyLocalFiles,
@@ -54,6 +55,16 @@ const parseRetainedImageIds = (value, fallback = []) => {
   } catch {
     throw new Error("retainedImageIds must be a valid JSON array");
   }
+};
+
+const recalculateProductReviewStats = (product) => {
+  product.numReviews = product.reviews.length;
+
+  product.rating =
+    product.reviews.length > 0
+      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
+        product.reviews.length
+      : 0;
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -278,6 +289,76 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   }
 
   res.json(formatProductForClient(product, { includeProcessingMeta: false }));
+});
+
+export const createProductReview = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({
+    _id: req.params.id,
+    status: "ready",
+  });
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const numericRating = Number(req.body.rating);
+  const trimmedComment = req.body.comment?.toString().trim() || "";
+
+  if (
+    !Number.isInteger(numericRating) ||
+    numericRating < 1 ||
+    numericRating > 5
+  ) {
+    res.status(400);
+    throw new Error("Rating must be an integer between 1 and 5");
+  }
+
+  if (!trimmedComment) {
+    res.status(400);
+    throw new Error("Comment is required");
+  }
+
+  const alreadyReviewed = product.reviews.find(
+    (review) => review.user.toString() === req.user._id.toString(),
+  );
+
+  if (alreadyReviewed) {
+    res.status(400);
+    throw new Error("You have already reviewed this product");
+  }
+
+  const hasPaidOrderForProduct = await Order.exists({
+    user: req.user._id,
+    isPaid: true,
+    orderItems: {
+      $elemMatch: {
+        product: product._id,
+      },
+    },
+  });
+
+  if (!hasPaidOrderForProduct) {
+    res.status(403);
+    throw new Error(
+      "Only customers who purchased and paid for this product can review it",
+    );
+  }
+
+  product.reviews.push({
+    name: req.user.username || "Customer",
+    rating: numericRating,
+    comment: trimmedComment,
+    user: req.user._id,
+  });
+
+  recalculateProductReviewStats(product);
+
+  await product.save();
+
+  res.status(201).json({
+    message: "Review added successfully",
+  });
 });
 
 export const getMyProducts = asyncHandler(async (req, res) => {
