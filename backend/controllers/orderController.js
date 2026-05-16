@@ -3,6 +3,11 @@ import Order from "../models/orderModel.js";
 import Product from "../models/productModel.js";
 import { formatOrderForClient } from "../utilites/formatOrderForClient.js";
 import { logError } from "../utilites/logError.js";
+import {
+  capturePayPalCheckoutOrder,
+  createPayPalCheckoutOrder,
+  getPayPalClientIdValue,
+} from "../utilites/paypal.js";
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -15,6 +20,9 @@ const getPrimaryProductImage = (product) =>
   product?.images?.[0]?.medium ||
   product?.images?.[0]?.original ||
   "";
+
+const getPayPalCaptureId = (captureResponse) =>
+  captureResponse?.purchase_units?.[0]?.payments?.captures?.[0]?.id || "";
 
 const rollbackDecrementedStock = async (decrementedProducts = []) => {
   for (const item of decrementedProducts) {
@@ -35,6 +43,34 @@ const rollbackDecrementedStock = async (decrementedProducts = []) => {
         },
       });
     }
+  }
+};
+
+const getOrderOrThrow = async (orderId) => {
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw createHttpError(404, "Order not found");
+  }
+
+  return order;
+};
+
+const assertOrderViewer = (order, user) => {
+  const isOwner = order.user.toString() === user._id.toString();
+
+  if (!isOwner && !user.isAdmin) {
+    throw createHttpError(403, "Not authorized to view this order");
+  }
+
+  return { isOwner };
+};
+
+const assertOrderOwnerForPayment = (order, user) => {
+  const isOwner = order.user.toString() === user._id.toString();
+
+  if (!isOwner) {
+    throw createHttpError(403, "Not authorized to pay for this order");
   }
 };
 
@@ -170,19 +206,143 @@ export const getMyOrders = asyncHandler(async (req, res) => {
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+  const order = await getOrderOrThrow(req.params.id);
 
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-
-  const isOwner = order.user.toString() === req.user._id.toString();
-
-  if (!isOwner && !req.user.isAdmin) {
-    res.status(403);
-    throw new Error("Not authorized to view this order");
-  }
+  assertOrderViewer(order, req.user);
 
   res.json(formatOrderForClient(order));
+});
+
+export const getPayPalClientId = asyncHandler(async (req, res) => {
+  const clientId = getPayPalClientIdValue();
+
+  if (!clientId) {
+    res.status(500);
+    throw new Error("PayPal client ID is not configured");
+  }
+
+  res.json({ clientId });
+});
+
+export const createPayPalOrder = asyncHandler(async (req, res) => {
+  const order = await getOrderOrThrow(req.params.id);
+
+  assertOrderOwnerForPayment(order, req.user);
+
+  if (order.isPaid || order.paymentStatus === "paid") {
+    res.status(400);
+    throw new Error("Order is already paid");
+  }
+
+  if (Number(order.totalPrice || 0) <= 0) {
+    res.status(400);
+    throw new Error("Order total must be greater than zero");
+  }
+
+  try {
+    const paypalOrder = await createPayPalCheckoutOrder({
+      amount: order.totalPrice,
+      localOrderId: order._id.toString(),
+    });
+
+    order.paymentResult = {
+      paypalOrderId: paypalOrder.id || "",
+      paypalCaptureId: order.paymentResult?.paypalCaptureId || "",
+      payerId: order.paymentResult?.payerId || "",
+      payerEmail: order.paymentResult?.payerEmail || "",
+      status: paypalOrder.status || "CREATED",
+    };
+
+    await order.save();
+
+    res.json({
+      paypalOrderId: paypalOrder.id,
+    });
+  } catch (error) {
+    logError({
+      level: "error",
+      scope: "createPayPalOrder",
+      message: "Failed to create PayPal order",
+      error,
+      meta: {
+        userId: req.user?._id?.toString(),
+        orderId: order._id.toString(),
+      },
+    });
+
+    res.status(error.statusCode || 500);
+    throw new Error(error.message || "Failed to create PayPal order");
+  }
+});
+
+export const capturePayPalOrder = asyncHandler(async (req, res) => {
+  const order = await getOrderOrThrow(req.params.id);
+
+  assertOrderOwnerForPayment(order, req.user);
+
+  if (order.isPaid || order.paymentStatus === "paid") {
+    res.status(400);
+    throw new Error("Order is already paid");
+  }
+
+  const paypalOrderId =
+    req.body?.paypalOrderId || order.paymentResult?.paypalOrderId || "";
+
+  if (!paypalOrderId) {
+    res.status(400);
+    throw new Error("Missing PayPal order ID");
+  }
+
+  if (
+    order.paymentResult?.paypalOrderId &&
+    order.paymentResult.paypalOrderId !== paypalOrderId
+  ) {
+    res.status(409);
+    throw new Error("PayPal order ID does not match the pending payment");
+  }
+
+  try {
+    const captureResult = await capturePayPalCheckoutOrder(paypalOrderId);
+
+    if (captureResult.status !== "COMPLETED") {
+      res.status(400);
+      throw new Error("PayPal payment was not completed");
+    }
+
+    order.isPaid = true;
+    order.paidAt = new Date();
+    order.paymentStatus = "paid";
+    order.paymentMethod = "paypal";
+
+    if (order.orderStatus === "placed") {
+      order.orderStatus = "processing";
+    }
+
+    order.paymentResult = {
+      paypalOrderId,
+      paypalCaptureId: getPayPalCaptureId(captureResult),
+      payerId: captureResult?.payer?.payer_id || "",
+      payerEmail: captureResult?.payer?.email_address || "",
+      status: captureResult.status || "COMPLETED",
+    };
+
+    const updatedOrder = await order.save();
+
+    res.json(formatOrderForClient(updatedOrder));
+  } catch (error) {
+    logError({
+      level: "error",
+      scope: "capturePayPalOrder",
+      message: "Failed to capture PayPal order",
+      error,
+      meta: {
+        userId: req.user?._id?.toString(),
+        orderId: order._id.toString(),
+        paypalOrderId,
+      },
+    });
+
+    res.status(error.statusCode || 500);
+    throw new Error(error.message || "Failed to capture PayPal payment");
+  }
 });

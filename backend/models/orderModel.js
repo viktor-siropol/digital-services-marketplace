@@ -40,6 +40,36 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const paymentResultSchema = new mongoose.Schema(
+  {
+    paypalOrderId: {
+      type: String,
+      default: "",
+    },
+
+    paypalCaptureId: {
+      type: String,
+      default: "",
+    },
+
+    payerId: {
+      type: String,
+      default: "",
+    },
+
+    payerEmail: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: false },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     user: {
@@ -83,6 +113,11 @@ const orderSchema = new mongoose.Schema(
       enum: ["unpaid", "paid", "failed", "refunded"],
       default: "unpaid",
       index: true,
+    },
+
+    paymentResult: {
+      type: paymentResultSchema,
+      default: () => ({}),
     },
 
     orderStatus: {

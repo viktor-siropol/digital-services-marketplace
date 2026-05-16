@@ -11,6 +11,14 @@ const formatOrderItemForClient = (item = {}) => ({
   qty: item.qty,
 });
 
+const formatPaymentResultForClient = (paymentResult = {}) => ({
+  paypalOrderId: paymentResult.paypalOrderId || "",
+  paypalCaptureId: paymentResult.paypalCaptureId || "",
+  payerId: paymentResult.payerId || "",
+  payerEmail: paymentResult.payerEmail || "",
+  status: paymentResult.status || "",
+});
+
 export const formatOrderForClient = (order) => {
   const raw = order?.toObject ? order.toObject() : order;
 
@@ -26,6 +34,9 @@ export const formatOrderForClient = (order) => {
     totalPrice: raw.totalPrice ?? 0,
     paymentMethod: raw.paymentMethod || "paypal",
     paymentStatus: raw.paymentStatus || "unpaid",
+    paymentResult: raw.paymentResult
+      ? formatPaymentResultForClient(raw.paymentResult)
+      : null,
     orderStatus: raw.orderStatus || "placed",
     isPaid: Boolean(raw.isPaid),
     paidAt: raw.paidAt || null,
