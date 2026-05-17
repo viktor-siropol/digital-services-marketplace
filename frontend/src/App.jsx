@@ -23,6 +23,7 @@ import CategoryList from "./pages/Admin/CategoryList";
 import MyProducts from "./pages/Seller/MyProducts";
 import ManageProduct from "./pages/Seller/ManageProduct";
 import CreateProduct from "./pages/Seller/CreateProduct";
+import Favorites from "./pages/User/Favorites";
 
 const Layout = () => {
   return (
@@ -62,6 +63,7 @@ const router = createBrowserRouter(
         <Route path="profile" element={<Profile />} />
         <Route path="my-orders" element={<MyOrders />} />
         <Route path="my-orders/:id" element={<OrderDetails />} />
+        <Route path="favorites" element={<Favorites />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>

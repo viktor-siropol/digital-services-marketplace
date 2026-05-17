@@ -14,6 +14,7 @@ import {
   useGetPublicProductsQuery,
 } from "../../redux/api/productApiSlice";
 import { addToCart } from "../../redux/features/cart/cartSlice";
+import FavoriteButton from "../../components/Button/FavoriteButton";
 
 const overlayIconStyle = {
   stroke: "rgba(0,0,0,0.95)",
@@ -778,9 +779,17 @@ const ProductDetails = () => {
 
           <aside className="xl:sticky xl:top-24 xl:self-start">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h1 className="text-3xl font-semibold leading-tight text-slate-900">
-                {product.name}
-              </h1>
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="text-3xl font-semibold leading-tight text-slate-900">
+                  {product.name}
+                </h1>
+
+                <FavoriteButton
+                  productId={product._id}
+                  iconSizeClassName="text-[30px]"
+                  className="shrink-0"
+                />
+              </div>
 
               <div className="mt-4 flex items-center justify-between gap-4">
                 <p className="text-3xl font-semibold text-slate-900">

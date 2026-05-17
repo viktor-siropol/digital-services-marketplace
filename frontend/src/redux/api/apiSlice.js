@@ -10,6 +10,6 @@ const baseQueryWithRetry = retry(rawBaseQuery, { maxRetries: 2 });
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithRetry,
-  tagTypes: ["Product", "Order", "User", "Category"],
+  tagTypes: ["Product", "Order", "User", "Category", "Favorite"],
   endpoints: () => ({}),
 });
