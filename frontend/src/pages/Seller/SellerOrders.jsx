@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
-import { useGetMyOrdersQuery } from "../../redux/api/orderApiSlice";
+import { useGetMySalesOrdersQuery } from "../../redux/api/orderApiSlice";
 
 const formatPrice = (value) => `$${Number(value || 0).toFixed(2)}`;
 
@@ -21,8 +21,8 @@ const orderStatusStyles = {
   cancelled: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-const MyOrders = () => {
-  const { data: orders = [], isLoading, error } = useGetMyOrdersQuery();
+const SellerOrders = () => {
+  const { data: orders = [], isLoading, error } = useGetMySalesOrdersQuery();
 
   if (isLoading) {
     return (
@@ -36,7 +36,9 @@ const MyOrders = () => {
     return (
       <div className="p-6">
         <Message variant="danger">
-          {error?.data?.message || error?.error || "Failed to load orders"}
+          {error?.data?.message ||
+            error?.error ||
+            "Failed to load sales orders"}
         </Message>
       </div>
     );
@@ -48,18 +50,18 @@ const MyOrders = () => {
         <div className="mx-auto max-w-5xl px-4 py-8 md:px-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
             <h1 className="text-2xl font-semibold text-slate-900">
-              No orders yet
+              No sales orders yet
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              Your orders will appear here after you place them.
+              Orders placed for your products will appear here.
             </p>
 
             <Link
-              to="/shop"
+              to="/seller/products"
               className="mt-6 inline-flex items-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
             >
-              Go to shop
+              View my products
             </Link>
           </div>
         </div>
@@ -71,9 +73,12 @@ const MyOrders = () => {
     <div className="min-h-[calc(100vh-64px)] bg-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-semibold text-slate-900">My Orders</h1>
+          <h1 className="text-3xl font-semibold text-slate-900">
+            Sales Orders
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Track your order history and current order statuses.
+            Review orders that include your products and track fulfillment
+            status.
           </p>
         </div>
 
@@ -98,7 +103,7 @@ const MyOrders = () => {
                       {previewImage ? (
                         <ProductImagePreview
                           src={previewImage}
-                          alt={firstItem?.name || "Order item"}
+                          alt={firstItem?.name || "Sold item"}
                           wrapperClassName="h-24 w-24 bg-slate-100"
                           className="h-24 w-24 object-cover"
                         />
@@ -147,7 +152,7 @@ const MyOrders = () => {
                         </span>
 
                         <span className="text-xs text-slate-500">
-                          Items: {itemCount}
+                          Items sold: {itemCount}
                         </span>
                       </div>
                     </div>
@@ -159,16 +164,9 @@ const MyOrders = () => {
                         {formatPrice(order.totalPrice)}
                       </p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {firstItem?.name || "Order items"}
+                        {firstItem?.name || "Sold items"}
                       </p>
                     </div>
-
-                    <Link
-                      to={`/my-orders/${order._id}`}
-                      className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                    >
-                      View details
-                    </Link>
                   </div>
                 </div>
               </article>
@@ -180,4 +178,4 @@ const MyOrders = () => {
   );
 };
 
-export default MyOrders;
+export default SellerOrders;

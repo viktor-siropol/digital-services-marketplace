@@ -6,10 +6,25 @@ const rawBaseQuery = fetchBaseQuery({
   credentials: "include",
 });
 
-const baseQueryWithRetry = retry(rawBaseQuery, { maxRetries: 2 });
+const baseQueryWithSelectiveRetry = retry(
+  async (args, api, extraOptions) => {
+    const result = await rawBaseQuery(args, api, extraOptions);
+
+    if (result.error) {
+      const status = result.error.status;
+
+      if (typeof status === "number" && status >= 400 && status < 500) {
+        retry.fail(result.error, result.meta);
+      }
+    }
+
+    return result;
+  },
+  { maxRetries: 2 },
+);
 
 export const apiSlice = createApi({
-  baseQuery: baseQueryWithRetry,
+  baseQuery: baseQueryWithSelectiveRetry,
   tagTypes: ["Product", "Order", "User", "Category", "Favorite"],
   endpoints: () => ({}),
 });

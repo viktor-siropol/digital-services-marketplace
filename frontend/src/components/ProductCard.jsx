@@ -37,14 +37,14 @@ const ProductCard = ({
               blurDataURL={previewBlur}
               alt={product.name}
               wrapperClassName={`w-full bg-slate-100 ${
-                isCompact ? "aspect-[4/3]" : "aspect-[4/3]"
+                isCompact ? "aspect-4/3" : "aspect-4/3"
               }`}
               className={`w-full object-cover transition duration-300 group-hover:scale-[1.015] ${
-                isCompact ? "aspect-[4/3]" : "aspect-[4/3]"
+                isCompact ? "aspect-4/3" : "aspect-4/3"
               }`}
             />
           ) : (
-            <div className="flex aspect-[4/3] w-full items-center justify-center text-sm text-slate-400">
+            <div className="flex aspect-4/3 w-full items-center justify-center text-sm text-slate-400">
               No image
             </div>
           )}

@@ -15,6 +15,7 @@ import {
 } from "../../redux/api/productApiSlice";
 import { addToCart } from "../../redux/features/cart/cartSlice";
 import FavoriteButton from "../../components/Button/FavoriteButton";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 
 const overlayIconStyle = {
   stroke: "rgba(0,0,0,0.95)",
@@ -786,7 +787,8 @@ const ProductDetails = () => {
 
                 <FavoriteButton
                   productId={product._id}
-                  iconSizeClassName="text-[30px]"
+                  variant="soft"
+                  iconSizeClassName="text-lg"
                   className="shrink-0"
                 />
               </div>

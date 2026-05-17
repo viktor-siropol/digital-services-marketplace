@@ -24,6 +24,8 @@ import MyProducts from "./pages/Seller/MyProducts";
 import ManageProduct from "./pages/Seller/ManageProduct";
 import CreateProduct from "./pages/Seller/CreateProduct";
 import Favorites from "./pages/User/Favorites";
+import Loader from "./components/Loader";
+import SellerOrders from "./pages/Seller/SellerOrders";
 
 const Layout = () => {
   return (
@@ -55,6 +57,7 @@ const router = createBrowserRouter(
       <Route path="shop" element={<Shop />} />
       <Route path="cart" element={<Cart />} />
       <Route path="products/:id" element={<ProductDetails />} />
+      <Route path="loader" element={<Loader />} />
 
       <Route path="login" element={<Login />} />
       <Route path="register" element={<Register />} />
@@ -68,6 +71,7 @@ const router = createBrowserRouter(
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
         <Route path="seller/products" element={<MyProducts />} />
+        <Route path="seller/orders" element={<SellerOrders />} />
         <Route path="seller/products/new" element={<CreateProduct />} />
         <Route path="seller/products/:id" element={<ManageProduct />} />
       </Route>

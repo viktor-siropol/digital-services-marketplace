@@ -4,6 +4,7 @@ import {
   createOrder,
   createPayPalOrder,
   getMyOrders,
+  getMySalesOrders,
   getOrderById,
   getPayPalClientId,
 } from "../controllers/orderController.js";
@@ -17,6 +18,7 @@ router.route("/").post(authenticate, createOrder);
 router.route("/mine").get(authenticate, getMyOrders);
 router.route("/:id/paypal/create").post(authenticate, createPayPalOrder);
 router.route("/:id/paypal/capture").post(authenticate, capturePayPalOrder);
+router.route("/sales").get(authenticate, getMySalesOrders);
 router.route("/:id").get(authenticate, getOrderById);
 
 export default router;

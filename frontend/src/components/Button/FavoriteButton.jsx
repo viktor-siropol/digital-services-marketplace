@@ -9,23 +9,41 @@ import {
   useRemoveProductFromFavoritesMutation,
 } from "../../redux/api/favoriteApiSlice";
 
-const inactiveIconStyle = {
+const overlayInactiveIconStyle = {
   stroke: "rgba(0,0,0,0.95)",
   strokeWidth: 24,
   filter:
     "drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 1px 3px rgba(0,0,0,0.85))",
 };
 
-const activeIconStyle = {
+const overlayActiveIconStyle = {
   stroke: "rgba(255,255,255,0.65)",
   strokeWidth: 14,
   filter:
     "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
 };
 
+const scaleSoftIconSizeClassName = (sizeClassName) => {
+  switch (sizeClassName) {
+    case "text-sm":
+      return "text-base";
+    case "text-base":
+      return "text-lg";
+    case "text-lg":
+      return "text-2xl";
+    case "text-xl":
+      return "text-3xl";
+    case "text-2xl":
+      return "text-4xl";
+    default:
+      return sizeClassName;
+  }
+};
+
 const FavoriteButton = ({
   productId,
-  iconSizeClassName = "text-[28px]",
+  variant = "overlay",
+  iconSizeClassName,
   className = "",
 }) => {
   const navigate = useNavigate();
@@ -51,6 +69,14 @@ const FavoriteButton = ({
 
   const isBusy = addingFavorite || removingFavorite;
 
+  const baseIconSizeClassName =
+    iconSizeClassName || (variant === "soft" ? "text-lg" : "text-3xl");
+
+  const resolvedIconSizeClassName =
+    variant === "soft"
+      ? scaleSoftIconSizeClassName(baseIconSizeClassName)
+      : baseIconSizeClassName;
+
   const handleToggleFavorite = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -75,23 +101,38 @@ const FavoriteButton = ({
     }
   };
 
+  const buttonClassName =
+    variant === "soft"
+      ? `inline-flex shrink-0 items-center justify-center rounded-full text-slate-300 transition hover:scale-105 hover:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60 ${
+          isFavorited ? "text-rose-500 hover:text-rose-600" : ""
+        }`
+      : "inline-flex items-center justify-center p-1 transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60";
+
   return (
     <button
       type="button"
       onClick={handleToggleFavorite}
       disabled={isBusy}
-      className={`inline-flex items-center justify-center p-1 transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`${buttonClassName} ${className}`}
       aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
     >
-      {isFavorited ? (
+      {variant === "soft" ? (
+        isFavorited ? (
+          <FaHeart className={`${resolvedIconSizeClassName} text-rose-500`} />
+        ) : (
+          <FaRegHeart
+            className={`${resolvedIconSizeClassName} text-slate-300`}
+          />
+        )
+      ) : isFavorited ? (
         <FaHeart
-          className={`${iconSizeClassName} text-rose-500`}
-          style={activeIconStyle}
+          className={`${resolvedIconSizeClassName} text-rose-500`}
+          style={overlayActiveIconStyle}
         />
       ) : (
         <FaRegHeart
-          className={`${iconSizeClassName} text-white`}
-          style={inactiveIconStyle}
+          className={`${resolvedIconSizeClassName} text-white`}
+          style={overlayInactiveIconStyle}
         />
       )}
     </button>

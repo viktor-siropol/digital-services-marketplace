@@ -346,3 +346,51 @@ export const capturePayPalOrder = asyncHandler(async (req, res) => {
     throw new Error(error.message || "Failed to capture PayPal payment");
   }
 });
+
+export const getMySalesOrders = asyncHandler(async (req, res) => {
+  if (!req.user.isSeller && !req.user.isAdmin) {
+    res.status(403);
+    throw new Error("Not authorized to view seller orders");
+  }
+
+  const orders = await Order.find({
+    "orderItems.seller": req.user._id,
+  }).sort({
+    createdAt: -1,
+  });
+
+  const salesOrders = orders.map((order) => {
+    const sellerItems = order.orderItems.filter(
+      (item) => item.seller.toString() === req.user._id.toString(),
+    );
+
+    const sellerItemsPrice = sellerItems.reduce(
+      (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0),
+      0,
+    );
+
+    return {
+      _id: order._id,
+      orderItems: sellerItems.map((item) => ({
+        product: item.product,
+        seller: item.seller,
+        name: item.name,
+        image: item.image || "",
+        price: item.price,
+        qty: item.qty,
+      })),
+      itemsPrice: Number(sellerItemsPrice.toFixed(2)),
+      totalPrice: Number(sellerItemsPrice.toFixed(2)),
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      isPaid: order.isPaid,
+      paidAt: order.paidAt,
+      deliveredAt: order.deliveredAt,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  });
+
+  res.json(salesOrders);
+});
