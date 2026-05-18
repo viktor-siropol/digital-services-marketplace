@@ -27,6 +27,8 @@ import Favorites from "./pages/User/Favorites";
 import SellerOrders from "./pages/Seller/SellerOrders";
 import Footer from "./components/Footer";
 import SellerOrderDetails from "./pages/Seller/SellerOrderDetails";
+import RouteErrorPage from "./components/RouteErrorPage";
+import NotFound from "./components/NotFound";
 
 const Layout = () => {
   return (
@@ -55,7 +57,7 @@ const Layout = () => {
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" element={<Layout />}>
+    <Route path="/" element={<Layout />} errorElement={<RouteErrorPage />}>
       <Route index element={<Shop />} />
       <Route path="shop" element={<Shop />} />
       <Route path="cart" element={<Cart />} />
@@ -83,6 +85,8 @@ const router = createBrowserRouter(
         <Route path="admin/userlist" element={<UserList />} />
         <Route path="admin/category" element={<CategoryList />} />
       </Route>
+
+      <Route path="*" element={<NotFound />} />
     </Route>,
   ),
 );

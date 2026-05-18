@@ -6,20 +6,20 @@ import {
   updateProduct,
   deleteProduct,
   getPublicProducts,
-  getPublicProductsBrowse,
   getPublicProductById,
   getMyProducts,
   getMyProductById,
   retryProductImageProcessing,
+  getPublicProductsBrowse,
 } from "../controllers/productController.js";
-import upload from "../middlewares/uploadMiddleware.js";
+import { uploadProductImages } from "../middlewares/uploadMiddleware.js";
 
 const router = express.Router();
 
 router
   .route("/")
   .get(getPublicProducts)
-  .post(authenticate, upload.array("images", 8), createProduct);
+  .post(authenticate, uploadProductImages, createProduct);
 
 router.get("/browse", getPublicProductsBrowse);
 router.get("/p/:id", getPublicProductById);
@@ -32,7 +32,7 @@ router.post("/:id/retry-processing", authenticate, retryProductImageProcessing);
 
 router
   .route("/:id")
-  .put(authenticate, upload.array("images", 8), updateProduct)
+  .put(authenticate, uploadProductImages, updateProduct)
   .delete(authenticate, deleteProduct);
 
 export default router;

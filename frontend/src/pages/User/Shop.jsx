@@ -2,17 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FiCheck,
   FiChevronDown,
-  FiRotateCcw,
   FiSearch,
   FiX,
+  FiRotateCcw,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductCard from "../../components/ProductCard";
 import { useGetPublicProductsBrowseQuery } from "../../redux/api/productApiSlice";
 import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
-
-const DEFAULT_PAGE_SIZE = 20;
 
 const sortOptions = [
   { value: "newest", label: "Popular" },
@@ -36,44 +36,13 @@ const normalizePriceFilter = (value) => {
     return "";
   }
 
-  return String(parsedValue);
-};
-
-const buildPaginationItems = (currentPage, totalPages) => {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const items = [1];
-  const start = Math.max(2, currentPage - 1);
-  const end = Math.min(totalPages - 1, currentPage + 1);
-
-  if (start > 2) {
-    items.push("left-ellipsis");
-  }
-
-  for (let page = start; page <= end; page += 1) {
-    items.push(page);
-  }
-
-  if (end < totalPages - 1) {
-    items.push("right-ellipsis");
-  }
-
-  items.push(totalPages);
-
-  return items;
+  return parsedValue;
 };
 
 const Shop = () => {
-  const {
-    data: categories = [],
-    isLoading: loadingCategories,
-    error: categoriesError,
-  } = useGetCategoriesQuery();
+  const { data: categories = [] } = useGetCategoriesQuery();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
@@ -94,79 +63,26 @@ const Shop = () => {
     [maxPrice],
   );
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm.trim());
-    }, 350);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    setPageNumber(1);
-  }, [
-    debouncedSearchTerm,
-    activeCategory,
-    stockFilter,
-    normalizedMinPrice,
-    normalizedMaxPrice,
-    sortBy,
-  ]);
-
-  const queryParams = useMemo(
-    () => ({
-      pageNumber,
-      pageSize: DEFAULT_PAGE_SIZE,
-      keyword: debouncedSearchTerm,
-      category: activeCategory,
-      stock: stockFilter,
-      minPrice: normalizedMinPrice,
-      maxPrice: normalizedMaxPrice,
-      sortBy,
-    }),
-    [
-      pageNumber,
-      debouncedSearchTerm,
-      activeCategory,
-      stockFilter,
-      normalizedMinPrice,
-      normalizedMaxPrice,
-      sortBy,
-    ],
-  );
-
   const {
     data: browseData,
     isLoading,
-    isFetching,
     error,
-  } = useGetPublicProductsBrowseQuery(queryParams);
+    isFetching,
+  } = useGetPublicProductsBrowseQuery({
+    pageNumber,
+    pageSize: 10,
+    keyword: searchTerm,
+    category: activeCategory,
+    stock: stockFilter,
+    minPrice: normalizedMinPrice,
+    maxPrice: normalizedMaxPrice,
+    sortBy,
+  });
 
   const products = browseData?.products || [];
-  const totalProducts = browseData?.totalProducts || 0;
-  const totalPages = browseData?.pages || 1;
   const currentPage = browseData?.page || 1;
-  const currentPageSize = browseData?.pageSize || DEFAULT_PAGE_SIZE;
-
-  useEffect(() => {
-    if (currentPage !== pageNumber) {
-      setPageNumber(currentPage);
-    }
-  }, [currentPage, pageNumber]);
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
-        setIsSortMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
+  const totalPages = browseData?.pages || 1;
+  const totalProducts = browseData?.totalProducts || 0;
 
   const currentSortLabel = useMemo(() => {
     return (
@@ -191,7 +107,10 @@ const Shop = () => {
       pills.push({
         key: "search",
         label: `Search: ${searchTerm.trim()}`,
-        onRemove: () => setSearchTerm(""),
+        onRemove: () => {
+          setSearchTerm("");
+          setPageNumber(1);
+        },
       });
     }
 
@@ -203,7 +122,10 @@ const Shop = () => {
       pills.push({
         key: "category",
         label: activeCategoryLabel,
-        onRemove: () => setActiveCategory("all"),
+        onRemove: () => {
+          setActiveCategory("all");
+          setPageNumber(1);
+        },
       });
     }
 
@@ -215,7 +137,10 @@ const Shop = () => {
       pills.push({
         key: "stock",
         label: stockLabel,
-        onRemove: () => setStockFilter("all"),
+        onRemove: () => {
+          setStockFilter("all");
+          setPageNumber(1);
+        },
       });
     }
 
@@ -223,7 +148,10 @@ const Shop = () => {
       pills.push({
         key: "minPrice",
         label: `Min $${normalizedMinPrice}`,
-        onRemove: () => setMinPrice(""),
+        onRemove: () => {
+          setMinPrice("");
+          setPageNumber(1);
+        },
       });
     }
 
@@ -231,7 +159,10 @@ const Shop = () => {
       pills.push({
         key: "maxPrice",
         label: `Max $${normalizedMaxPrice}`,
-        onRemove: () => setMaxPrice(""),
+        onRemove: () => {
+          setMaxPrice("");
+          setPageNumber(1);
+        },
       });
     }
 
@@ -247,21 +178,8 @@ const Shop = () => {
 
   const hasActiveFilters = activeFilterPills.length > 0;
 
-  const paginationItems = useMemo(() => {
-    return buildPaginationItems(currentPage, totalPages);
-  }, [currentPage, totalPages]);
-
-  const currentRangeStart =
-    totalProducts === 0 ? 0 : (currentPage - 1) * currentPageSize + 1;
-
-  const currentRangeEnd =
-    totalProducts === 0
-      ? 0
-      : Math.min(totalProducts, currentPage * currentPageSize);
-
   const resetFilters = () => {
     setSearchTerm("");
-    setDebouncedSearchTerm("");
     setActiveCategory("all");
     setStockFilter("all");
     setMinPrice("");
@@ -271,16 +189,21 @@ const Shop = () => {
     setIsSortMenuOpen(false);
   };
 
-  const handlePageChange = (nextPage) => {
-    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) {
-      return;
-    }
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+        setIsSortMenuOpen(false);
+      }
+    };
 
-    setPageNumber(nextPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+    document.addEventListener("mousedown", handleOutsideClick);
 
-  if (isLoading || loadingCategories) {
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
         <Loader />
@@ -288,15 +211,11 @@ const Shop = () => {
     );
   }
 
-  if (error || categoriesError) {
+  if (error) {
     return (
       <div className="p-6">
         <Message variant="danger">
-          {error?.data?.message ||
-            categoriesError?.data?.message ||
-            error?.error ||
-            categoriesError?.error ||
-            "Failed to load products"}
+          {error?.data?.message || error?.error || "Failed to load products"}
         </Message>
       </div>
     );
@@ -313,7 +232,7 @@ const Shop = () => {
                   Browse marketplace
                 </p>
 
-                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div className="flex flex-col gap-3">
                   <div>
                     <h1 className="text-[28px] font-semibold tracking-tight text-slate-900">
                       Explore products
@@ -324,40 +243,25 @@ const Shop = () => {
                     </p>
                   </div>
 
-                  <div className="text-sm text-slate-500">
-                    {isFetching
-                      ? "Updating results..."
-                      : `${totalProducts} results`}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-5 py-4">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                        Matching products
+                      </p>
+                      <p className="mt-1 text-[28px] font-semibold tracking-tight text-slate-900">
+                        {totalProducts}
+                      </p>
+                    </div>
+
+                    <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-5 py-4">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                        Current page
+                      </p>
+                      <p className="mt-1 text-[28px] font-semibold tracking-tight text-slate-900">
+                        {currentPage} / {totalPages}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
-                    Matching products
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {totalProducts}
-                  </p>
-                </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
-                    Current page
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {currentPage} / {totalPages}
-                  </p>
-                </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
-                    Showing
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {currentRangeStart}-{currentRangeEnd}
-                  </p>
                 </div>
               </div>
 
@@ -368,7 +272,10 @@ const Shop = () => {
                   <input
                     type="text"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setPageNumber(1);
+                    }}
                     placeholder="Search products, brands or categories"
                     className="h-14 w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
                   />
@@ -376,7 +283,10 @@ const Shop = () => {
                   {searchTerm.trim() && (
                     <button
                       type="button"
-                      onClick={() => setSearchTerm("")}
+                      onClick={() => {
+                        setSearchTerm("");
+                        setPageNumber(1);
+                      }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
                       aria-label="Clear search"
                     >
@@ -410,6 +320,7 @@ const Shop = () => {
                             type="button"
                             onClick={() => {
                               setSortBy(option.value);
+                              setPageNumber(1);
                               setIsSortMenuOpen(false);
                             }}
                             className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition ${
@@ -437,7 +348,10 @@ const Shop = () => {
                       <button
                         key={pill.value}
                         type="button"
-                        onClick={() => setActiveCategory(pill.value)}
+                        onClick={() => {
+                          setActiveCategory(pill.value);
+                          setPageNumber(1);
+                        }}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                           isActive
                             ? "bg-slate-900 text-white"
@@ -459,7 +373,10 @@ const Shop = () => {
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => setStockFilter(option.value)}
+                          onClick={() => {
+                            setStockFilter(option.value);
+                            setPageNumber(1);
+                          }}
                           className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                             isActive
                               ? "bg-white text-slate-900 shadow-sm"
@@ -477,7 +394,10 @@ const Shop = () => {
                       type="number"
                       min="0"
                       value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
+                      onChange={(e) => {
+                        setMinPrice(e.target.value);
+                        setPageNumber(1);
+                      }}
                       placeholder="Min price"
                       className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                     />
@@ -486,7 +406,10 @@ const Shop = () => {
                       type="number"
                       min="0"
                       value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
+                      onChange={(e) => {
+                        setMaxPrice(e.target.value);
+                        setPageNumber(1);
+                      }}
                       placeholder="Max price"
                       className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                     />
@@ -521,6 +444,12 @@ const Shop = () => {
             </div>
           </section>
 
+          {isFetching && !isLoading ? (
+            <div className="flex justify-center py-2">
+              <Loader />
+            </div>
+          ) : null}
+
           {products.length === 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">
@@ -529,16 +458,6 @@ const Shop = () => {
               <p className="mt-2 text-sm text-slate-500">
                 Try another search term or adjust your filters.
               </p>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="mt-5 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Reset filters
-                </button>
-              )}
             </div>
           ) : (
             <>
@@ -552,62 +471,37 @@ const Shop = () => {
                 ))}
               </div>
 
-              <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:flex-row sm:justify-between">
-                <div className="text-sm text-slate-500">
-                  Showing {currentRangeStart}-{currentRangeEnd} of{" "}
-                  {totalProducts} products
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center gap-2">
+              {totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => handlePageChange(currentPage - 1)}
+                    onClick={() =>
+                      setPageNumber((prev) => Math.max(1, prev - 1))
+                    }
                     disabled={currentPage === 1}
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
+                    <FiChevronLeft className="h-4 w-4" />
                     Previous
                   </button>
 
-                  {paginationItems.map((item, index) => {
-                    if (typeof item !== "number") {
-                      return (
-                        <span
-                          key={`${item}-${index}`}
-                          className="inline-flex h-10 min-w-10 items-center justify-center px-2 text-sm text-slate-400"
-                        >
-                          …
-                        </span>
-                      );
-                    }
-
-                    const isActive = item === currentPage;
-
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => handlePageChange(item)}
-                        className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-medium transition ${
-                          isActive
-                            ? "bg-slate-900 text-white"
-                            : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                    Page {currentPage} of {totalPages}
+                  </div>
 
                   <button
                     type="button"
-                    onClick={() => handlePageChange(currentPage + 1)}
+                    onClick={() =>
+                      setPageNumber((prev) => Math.min(totalPages, prev + 1))
+                    }
                     disabled={currentPage === totalPages}
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next
+                    <FiChevronRight className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
