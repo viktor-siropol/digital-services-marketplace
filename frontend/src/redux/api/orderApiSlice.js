@@ -18,12 +18,6 @@ export const orderApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
-    getMySalesOrders: builder.query({
-      query: () => `${ORDERS_URL}/sales`,
-      providesTags: ["Order"],
-      keepUnusedDataFor: 5,
-    }),
-
     getOrderById: builder.query({
       query: (id) => `${ORDERS_URL}/${id}`,
       providesTags: (result, error, id) => [{ type: "Order", id }],
@@ -40,13 +34,54 @@ export const orderApiSlice = apiSlice.injectEndpoints({
         url: `${ORDERS_URL}/${orderId}/paypal/create`,
         method: "POST",
       }),
+      invalidatesTags: (result, error, orderId) => [
+        "Order",
+        { type: "Order", id: orderId },
+      ],
     }),
 
     capturePayPalOrder: builder.mutation({
       query: ({ orderId, paypalOrderId }) => ({
         url: `${ORDERS_URL}/${orderId}/paypal/capture`,
-        method: "POST",
+        method: "PUT",
         body: { paypalOrderId },
+      }),
+      invalidatesTags: (result, error, { orderId }) => [
+        "Order",
+        "Product",
+        { type: "Order", id: orderId },
+      ],
+    }),
+
+    cancelOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `${ORDERS_URL}/${orderId}/cancel`,
+        method: "PUT",
+      }),
+      invalidatesTags: (result, error, orderId) => [
+        "Order",
+        "Product",
+        { type: "Order", id: orderId },
+      ],
+    }),
+
+    getMySalesOrders: builder.query({
+      query: () => `${ORDERS_URL}/sales`,
+      providesTags: ["Order"],
+      keepUnusedDataFor: 5,
+    }),
+
+    getSalesOrderById: builder.query({
+      query: (id) => `${ORDERS_URL}/sales/${id}`,
+      providesTags: (result, error, id) => [{ type: "Order", id }],
+      keepUnusedDataFor: 5,
+    }),
+
+    updateSellerOrderStatus: builder.mutation({
+      query: ({ orderId, nextStatus }) => ({
+        url: `${ORDERS_URL}/${orderId}/status`,
+        method: "PUT",
+        body: { nextStatus },
       }),
       invalidatesTags: (result, error, { orderId }) => [
         "Order",
@@ -59,9 +94,12 @@ export const orderApiSlice = apiSlice.injectEndpoints({
 export const {
   useCreateOrderMutation,
   useGetMyOrdersQuery,
-  useGetMySalesOrdersQuery,
   useGetOrderByIdQuery,
   useGetPayPalClientIdQuery,
   useCreatePayPalOrderMutation,
   useCapturePayPalOrderMutation,
+  useCancelOrderMutation,
+  useGetMySalesOrdersQuery,
+  useGetSalesOrderByIdQuery,
+  useUpdateSellerOrderStatusMutation,
 } = orderApiSlice;

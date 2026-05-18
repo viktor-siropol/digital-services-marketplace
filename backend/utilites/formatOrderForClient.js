@@ -30,18 +30,18 @@ export const formatOrderForClient = (order) => {
     orderItems: Array.isArray(raw.orderItems)
       ? raw.orderItems.map(formatOrderItemForClient)
       : [],
-    itemsPrice: raw.itemsPrice ?? 0,
-    totalPrice: raw.totalPrice ?? 0,
+    itemsPrice: Number(raw.itemsPrice || 0),
+    totalPrice: Number(raw.totalPrice || 0),
     paymentMethod: raw.paymentMethod || "paypal",
     paymentStatus: raw.paymentStatus || "unpaid",
-    paymentResult: raw.paymentResult
-      ? formatPaymentResultForClient(raw.paymentResult)
-      : null,
+    paymentResult: formatPaymentResultForClient(raw.paymentResult),
+    reservationStatus: raw.reservationStatus || "active",
+    expiresAt: raw.expiresAt || null,
     orderStatus: raw.orderStatus || "placed",
     isPaid: Boolean(raw.isPaid),
     paidAt: raw.paidAt || null,
     deliveredAt: raw.deliveredAt || null,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
+    createdAt: raw.createdAt || null,
+    updatedAt: raw.updatedAt || null,
   };
 };

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiChevronDown } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
+import SelectMenu from "../../components/form/SelectMenu";
 import {
   useGetMyProductByIdQuery,
   useUpdateProductMutation,
@@ -55,6 +55,13 @@ const ManageProduct = () => {
 
   const initializedProductIdRef = useRef(null);
   const newImagesRef = useRef([]);
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((item) => ({
+      label: item.name,
+      value: item._id,
+    }));
+  }, [categories]);
 
   useEffect(() => {
     newImagesRef.current = newImages;
@@ -262,7 +269,7 @@ const ManageProduct = () => {
 
           <div className="mt-3 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-[30px] font-semibold tracking-tight text-slate-900">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
                 Edit product
               </h1>
 
@@ -280,7 +287,7 @@ const ManageProduct = () => {
               )}
 
               <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-md font-medium ${
                   statusStyles[product?.status] || statusStyles.processing
                 }`}
               >
@@ -338,27 +345,17 @@ const ManageProduct = () => {
                 Category
               </label>
 
-              <div className="relative">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={loadingCategories}
-                  className="h-12 w-full appearance-none rounded-full border border-slate-200 bg-white px-5 pr-11 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-slate-300 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-                >
-                  <option value="">
-                    {loadingCategories
-                      ? "Loading categories..."
-                      : "Select category"}
-                  </option>
-                  {categories.map((item) => (
-                    <option key={item._id} value={item._id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-
-                <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              </div>
+              <SelectMenu
+                value={category}
+                onChange={setCategory}
+                options={categoryOptions}
+                placeholder={
+                  loadingCategories
+                    ? "Loading categories..."
+                    : "Select category"
+                }
+                disabled={loadingCategories}
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -441,11 +438,11 @@ const ManageProduct = () => {
               </div>
 
               {existingImages.length > 0 ? (
-                <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="mb-3 flex flex-wrap gap-3">
                   {existingImages.map((image) => (
                     <div
                       key={image.imageId}
-                      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group relative w-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       <button
                         type="button"
@@ -473,7 +470,7 @@ const ManageProduct = () => {
                       <button
                         type="button"
                         onClick={() => removeExistingImage(image.imageId)}
-                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-xs font-medium text-rose-600 shadow hover:bg-white"
+                        className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-xs font-medium text-rose-600 shadow hover:bg-white"
                         aria-label="Remove current image"
                       >
                         ×
@@ -533,7 +530,7 @@ const ManageProduct = () => {
                           <p className="truncate text-xs font-medium text-slate-900">
                             {image.file.name}
                           </p>
-                          <p className="mt-1 text-[11px] text-slate-500">
+                          <p className="mt-1 text-xs text-slate-500">
                             {formatFileSize(image.file.size)}
                           </p>
                         </div>
@@ -551,18 +548,18 @@ const ManageProduct = () => {
                   ))}
                 </div>
               )}
+
+              {product?.status === "failed" && product?.processingError && (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                  <p className="text-sm text-rose-700">
+                    {product.processingError}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {product?.status === "failed" && product?.processingError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p className="text-sm text-rose-700">
-                  {product.processingError}
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between gap-4 pt-1">
-              <div>{updating ? <Loader size="sm" /> : null}</div>
+            <div className="flex items-center justify-end gap-4 pt-1">
+              {updating && <Loader />}
 
               <button
                 type="submit"

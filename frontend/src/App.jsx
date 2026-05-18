@@ -26,6 +26,7 @@ import CreateProduct from "./pages/Seller/CreateProduct";
 import Favorites from "./pages/User/Favorites";
 import SellerOrders from "./pages/Seller/SellerOrders";
 import Footer from "./components/Footer";
+import SellerOrderDetails from "./pages/Seller/SellerOrderDetails";
 
 const Layout = () => {
   return (
@@ -72,9 +73,10 @@ const router = createBrowserRouter(
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
         <Route path="seller/products" element={<MyProducts />} />
-        <Route path="seller/orders" element={<SellerOrders />} />
-        <Route path="seller/products/new" element={<CreateProduct />} />
         <Route path="seller/products/:id" element={<ManageProduct />} />
+        <Route path="seller/orders" element={<SellerOrders />} />
+        <Route path="seller/orders/:id" element={<SellerOrderDetails />} />
+        <Route path="seller/products/new" element={<CreateProduct />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={["admin"]} />}>

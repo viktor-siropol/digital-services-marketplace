@@ -16,6 +16,10 @@ const ProductCard = ({
   const previewBlur = product.images?.[0]?.blurDataURL;
 
   const isCompact = variant === "compact";
+  const availableStock = Math.max(
+    0,
+    Number(product.availableStock ?? product.countInStock ?? 0),
+  );
 
   return (
     <article className="group">
@@ -76,10 +80,10 @@ const ProductCard = ({
 
             <p
               className={`mt-2 text-xs font-medium ${
-                product.countInStock > 0 ? "text-emerald-600" : "text-rose-600"
+                availableStock > 0 ? "text-emerald-600" : "text-rose-600"
               }`}
             >
-              {product.countInStock > 0 ? "Available" : "Out of stock"}
+              {availableStock > 0 ? "Available" : "Out of stock"}
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
+import Category from "../models/categoryModel.js";
 import { processProductImages } from "../utilites/processProductImages.js";
 import {
   deleteManyLocalFiles,
@@ -10,6 +11,11 @@ import { deleteManyCloudinaryProductImages } from "../utilites/cloudinaryProduct
 import { enqueueImageProcessingJob } from "../queues/imageQueue.js";
 import { formatProductForClient } from "../utilites/formatProductForClient.js";
 import { logError } from "../utilites/logError.js";
+import {
+  decorateProductsWithAvailability,
+  expireExpiredOrderReservations,
+  getReservedQuantityMap,
+} from "../utilites/productAvailability.js";
 
 const slugify = (text) =>
   text
@@ -65,6 +71,14 @@ const recalculateProductReviewStats = (product) => {
       ? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
         product.reviews.length
       : 0;
+};
+
+const getActiveReservedQtyForProduct = async (productId) => {
+  await expireExpiredOrderReservations();
+
+  const reservedQuantityMap = await getReservedQuantityMap([productId]);
+
+  return reservedQuantityMap.get(productId.toString()) || 0;
 };
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -219,12 +233,28 @@ export const updateProduct = asyncHandler(async (req, res) => {
     req.body.quantity !== undefined
       ? Number(req.body.quantity)
       : product.quantity;
-  product.countInStock =
-    req.body.countInStock !== undefined
-      ? Number(req.body.countInStock)
-      : product.countInStock;
-  product.description = req.body.description ?? product.description;
 
+  if (req.body.countInStock !== undefined) {
+    const nextCountInStock = Number(req.body.countInStock);
+
+    if (Number.isNaN(nextCountInStock) || nextCountInStock < 0) {
+      res.status(400);
+      throw new Error("CountInStock must be a valid non-negative number");
+    }
+
+    const activeReservedQty = await getActiveReservedQtyForProduct(product._id);
+
+    if (nextCountInStock < activeReservedQty) {
+      res.status(409);
+      throw new Error(
+        `Count in stock cannot be set below ${activeReservedQty} because unpaid orders are currently reserving this product`,
+      );
+    }
+
+    product.countInStock = nextCountInStock;
+  }
+
+  product.description = req.body.description ?? product.description;
   product.images = [...keptImages, ...newProcessedImages];
 
   const updatedProduct = await product.save();
@@ -235,7 +265,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
     images: removedImages,
   });
 
-  res.json(formatProductForClient(updatedProduct));
+  const [productWithAvailability] = await decorateProductsWithAvailability([
+    updatedProduct,
+  ]);
+
+  res.json(formatProductForClient(productWithAvailability));
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
@@ -247,6 +281,15 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
+  }
+
+  const activeReservedQty = await getActiveReservedQtyForProduct(product._id);
+
+  if (activeReservedQty > 0) {
+    res.status(409);
+    throw new Error(
+      "Cannot delete this product while unpaid orders are actively reserving stock",
+    );
   }
 
   const imagesToDelete = product.images;
@@ -265,19 +308,139 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   res.json({ message: "Product deleted successfully" });
 });
 
+export const getPublicProductsBrowse = asyncHandler(async (req, res) => {
+  await expireExpiredOrderReservations();
+
+  const pageSize = Math.min(40, Math.max(1, Number(req.query.pageSize) || 20));
+
+  const requestedPage = Math.max(1, Number(req.query.pageNumber) || 1);
+
+  const keyword = req.query.keyword?.toString().trim() || "";
+  const categoryId = req.query.category?.toString().trim() || "";
+  const stockFilter = req.query.stock?.toString().trim() || "all";
+  const sortBy = req.query.sortBy?.toString().trim() || "newest";
+
+  const minPrice =
+    req.query.minPrice === undefined || req.query.minPrice === ""
+      ? null
+      : Number(req.query.minPrice);
+
+  const maxPrice =
+    req.query.maxPrice === undefined || req.query.maxPrice === ""
+      ? null
+      : Number(req.query.maxPrice);
+
+  const mongoQuery = {
+    status: "ready",
+  };
+
+  if (categoryId && categoryId !== "all") {
+    mongoQuery.category = categoryId;
+  }
+
+  if (minPrice !== null && !Number.isNaN(minPrice)) {
+    mongoQuery.price = {
+      ...(mongoQuery.price || {}),
+      $gte: minPrice,
+    };
+  }
+
+  if (maxPrice !== null && !Number.isNaN(maxPrice)) {
+    mongoQuery.price = {
+      ...(mongoQuery.price || {}),
+      $lte: maxPrice,
+    };
+  }
+
+  if (keyword) {
+    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const matchingCategories = await Category.find({
+      name: { $regex: escapedKeyword, $options: "i" },
+    }).select("_id");
+
+    const matchingCategoryIds = matchingCategories.map(
+      (category) => category._id,
+    );
+
+    mongoQuery.$or = [
+      { name: { $regex: escapedKeyword, $options: "i" } },
+      { brand: { $regex: escapedKeyword, $options: "i" } },
+      ...(matchingCategoryIds.length
+        ? [{ category: { $in: matchingCategoryIds } }]
+        : []),
+    ];
+  }
+
+  const sortMap = {
+    newest: { createdAt: -1 },
+    "price-asc": { price: 1, createdAt: -1 },
+    "price-desc": { price: -1, createdAt: -1 },
+    "name-asc": { name: 1, createdAt: -1 },
+  };
+
+  const sortConfig = sortMap[sortBy] || sortMap.newest;
+
+  const matchedProducts = await Product.find(mongoQuery).sort(sortConfig);
+
+  const productsWithAvailability =
+    await decorateProductsWithAvailability(matchedProducts);
+
+  let visibleProducts = productsWithAvailability;
+
+  if (stockFilter === "in-stock") {
+    visibleProducts = visibleProducts.filter(
+      (product) => Number(product.availableStock || 0) > 0,
+    );
+  }
+
+  if (stockFilter === "out-of-stock") {
+    visibleProducts = visibleProducts.filter(
+      (product) => Number(product.availableStock || 0) <= 0,
+    );
+  }
+
+  const totalProducts = visibleProducts.length;
+  const pages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  const page = Math.min(requestedPage, pages);
+
+  const startIndex = (page - 1) * pageSize;
+  const paginatedProducts = visibleProducts.slice(
+    startIndex,
+    startIndex + pageSize,
+  );
+
+  res.json({
+    products: paginatedProducts.map((product) =>
+      formatProductForClient(product, { includeProcessingMeta: false }),
+    ),
+    page,
+    pages,
+    totalProducts,
+    pageSize,
+  });
+});
+
 export const getPublicProducts = asyncHandler(async (req, res) => {
+  await expireExpiredOrderReservations();
+
   const products = await Product.find({ status: "ready" }).sort({
     createdAt: -1,
   });
 
+  const productsWithAvailability =
+    await decorateProductsWithAvailability(products);
+
   res.json(
-    products.map((product) =>
+    productsWithAvailability.map((product) =>
       formatProductForClient(product, { includeProcessingMeta: false }),
     ),
   );
 });
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
+  await expireExpiredOrderReservations();
+
   const product = await Product.findOne({
     _id: req.params.id,
     status: "ready",
@@ -288,7 +451,15 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  res.json(formatProductForClient(product, { includeProcessingMeta: false }));
+  const [productWithAvailability] = await decorateProductsWithAvailability([
+    product,
+  ]);
+
+  res.json(
+    formatProductForClient(productWithAvailability, {
+      includeProcessingMeta: false,
+    }),
+  );
 });
 
 export const createProductReview = asyncHandler(async (req, res) => {
@@ -362,14 +533,23 @@ export const createProductReview = asyncHandler(async (req, res) => {
 });
 
 export const getMyProducts = asyncHandler(async (req, res) => {
+  await expireExpiredOrderReservations();
+
   const products = await Product.find({ seller: req.user._id }).sort({
     createdAt: -1,
   });
 
-  res.json(products.map((product) => formatProductForClient(product)));
+  const productsWithAvailability =
+    await decorateProductsWithAvailability(products);
+
+  res.json(
+    productsWithAvailability.map((product) => formatProductForClient(product)),
+  );
 });
 
 export const getMyProductById = asyncHandler(async (req, res) => {
+  await expireExpiredOrderReservations();
+
   const product = await Product.findOne({
     _id: req.params.id,
     seller: req.user._id,
@@ -380,7 +560,11 @@ export const getMyProductById = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  res.json(formatProductForClient(product));
+  const [productWithAvailability] = await decorateProductsWithAvailability([
+    product,
+  ]);
+
+  res.json(formatProductForClient(productWithAvailability));
 });
 
 export const retryProductImageProcessing = asyncHandler(async (req, res) => {

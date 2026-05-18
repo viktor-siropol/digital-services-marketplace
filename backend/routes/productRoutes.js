@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
   getPublicProducts,
+  getPublicProductsBrowse,
   getPublicProductById,
   getMyProducts,
   getMyProductById,
@@ -20,6 +21,7 @@ router
   .get(getPublicProducts)
   .post(authenticate, upload.array("images", 8), createProduct);
 
+router.get("/browse", getPublicProductsBrowse);
 router.get("/p/:id", getPublicProductById);
 router.post("/:id/reviews", authenticate, createProductReview);
 

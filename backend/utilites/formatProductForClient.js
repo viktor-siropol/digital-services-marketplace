@@ -41,6 +41,7 @@ export const formatProductForClient = (
     price: raw.price,
     quantity: raw.quantity,
     countInStock: raw.countInStock,
+    availableStock: Number(raw.availableStock ?? raw.countInStock ?? 0),
     description: raw.description,
     numReviews: raw.numReviews ?? 0,
     rating: raw.rating ?? 0,

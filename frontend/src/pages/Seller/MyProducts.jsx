@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import { FiRotateCcw, FiSearch, FiX } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
+import SelectMenu from "../../components/form/SelectMenu";
 import {
   useDeleteProductMutation,
   useGetMyProductsQuery,
   useRetryProductImageProcessingMutation,
 } from "../../redux/api/productApiSlice";
+import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
 
 const statusStyles = {
   ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -21,8 +24,16 @@ const sortOptions = [
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
   { value: "price-desc", label: "Price: high to low" },
+  { value: "price-asc", label: "Price: low to high" },
   { value: "stock-desc", label: "Stock: high to low" },
+  { value: "stock-asc", label: "Stock: low to high" },
   { value: "name-asc", label: "Name: A to Z" },
+];
+
+const stockOptions = [
+  { value: "all", label: "All stock states" },
+  { value: "in-stock", label: "In stock" },
+  { value: "out-of-stock", label: "Out of stock" },
 ];
 
 const formatDate = (value) =>
@@ -33,6 +44,24 @@ const formatDate = (value) =>
   });
 
 const formatPrice = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+const getCategoryId = (product) => {
+  if (!product?.category) return "";
+
+  return typeof product.category === "object"
+    ? product.category?._id || ""
+    : product.category;
+};
+
+const getCategoryName = (product, categoryNameById) => {
+  if (!product?.category) return "";
+
+  if (typeof product.category === "object") {
+    return product.category?.name || "";
+  }
+
+  return categoryNameById.get(product.category) || "";
+};
 
 const MyProducts = () => {
   const {
@@ -45,9 +74,14 @@ const MyProducts = () => {
     refetchOnMountOrArgChange: true,
   });
 
+  const { data: categories = [], isLoading: loadingCategories } =
+    useGetCategoriesQuery();
+
   const [productToDelete, setProductToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
   const [deleteProduct, { isLoading: deleting }] = useDeleteProductMutation();
@@ -57,6 +91,17 @@ const MyProducts = () => {
   const hasProcessingProducts = products.some(
     (product) => product.status === "processing",
   );
+
+  const categoryNameById = useMemo(() => {
+    return new Map(categories.map((item) => [item._id, item.name]));
+  }, [categories]);
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((item) => ({
+      label: item.name,
+      value: item._id,
+    }));
+  }, [categories]);
 
   const summary = useMemo(() => {
     return {
@@ -75,15 +120,32 @@ const MyProducts = () => {
       const query = searchTerm.trim().toLowerCase();
 
       items = items.filter((product) => {
+        const categoryName = getCategoryName(product, categoryNameById);
+
         return (
           product.name?.toLowerCase().includes(query) ||
-          product.brand?.toLowerCase().includes(query)
+          product.brand?.toLowerCase().includes(query) ||
+          categoryName.toLowerCase().includes(query)
         );
       });
     }
 
     if (statusFilter !== "all") {
       items = items.filter((product) => product.status === statusFilter);
+    }
+
+    if (categoryFilter) {
+      items = items.filter(
+        (product) => getCategoryId(product) === categoryFilter,
+      );
+    }
+
+    if (stockFilter === "in-stock") {
+      items = items.filter((product) => Number(product.countInStock || 0) > 0);
+    }
+
+    if (stockFilter === "out-of-stock") {
+      items = items.filter((product) => Number(product.countInStock || 0) <= 0);
     }
 
     switch (sortBy) {
@@ -98,9 +160,19 @@ const MyProducts = () => {
         items.sort((a, b) => Number(b.price) - Number(a.price));
         break;
 
+      case "price-asc":
+        items.sort((a, b) => Number(a.price) - Number(b.price));
+        break;
+
       case "stock-desc":
         items.sort(
           (a, b) => Number(b.countInStock || 0) - Number(a.countInStock || 0),
+        );
+        break;
+
+      case "stock-asc":
+        items.sort(
+          (a, b) => Number(a.countInStock || 0) - Number(b.countInStock || 0),
         );
         break;
 
@@ -118,7 +190,61 @@ const MyProducts = () => {
     }
 
     return items;
-  }, [products, searchTerm, statusFilter, sortBy]);
+  }, [
+    products,
+    searchTerm,
+    statusFilter,
+    categoryFilter,
+    stockFilter,
+    sortBy,
+    categoryNameById,
+  ]);
+
+  const activeFilterPills = useMemo(() => {
+    const pills = [];
+
+    if (searchTerm.trim()) {
+      pills.push({
+        key: "search",
+        label: `Search: ${searchTerm.trim()}`,
+        onRemove: () => setSearchTerm(""),
+      });
+    }
+
+    if (statusFilter !== "all") {
+      pills.push({
+        key: "status",
+        label: `Status: ${statusFilter}`,
+        onRemove: () => setStatusFilter("all"),
+      });
+    }
+
+    if (categoryFilter) {
+      const categoryLabel =
+        categoryOptions.find((option) => option.value === categoryFilter)
+          ?.label || "Category";
+
+      pills.push({
+        key: "category",
+        label: categoryLabel,
+        onRemove: () => setCategoryFilter(""),
+      });
+    }
+
+    if (stockFilter !== "all") {
+      const stockLabel =
+        stockOptions.find((option) => option.value === stockFilter)?.label ||
+        "Stock";
+
+      pills.push({
+        key: "stock",
+        label: stockLabel,
+        onRemove: () => setStockFilter("all"),
+      });
+    }
+
+    return pills;
+  }, [searchTerm, statusFilter, categoryFilter, stockFilter, categoryOptions]);
 
   useEffect(() => {
     if (!hasProcessingProducts) return;
@@ -146,8 +272,8 @@ const MyProducts = () => {
       await deleteProduct(productToDelete._id).unwrap();
       toast.success("Product deleted successfully.");
       setProductToDelete(null);
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete product");
+    } catch (deleteError) {
+      toast.error(deleteError?.data?.message || "Failed to delete product");
     }
   };
 
@@ -156,14 +282,16 @@ const MyProducts = () => {
       await retryProcessing(id).unwrap();
       toast.success("Image processing restarted.");
       refetch();
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to restart processing");
+    } catch (retryError) {
+      toast.error(retryError?.data?.message || "Failed to restart processing");
     }
   };
 
   const resetFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setCategoryFilter("");
+    setStockFilter("all");
     setSortBy("newest");
   };
 
@@ -252,63 +380,131 @@ const MyProducts = () => {
         </div>
 
         <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_190px_220px_auto]">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto]">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Search
               </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by product name or brand"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 shadow-sm">
+                <FiSearch className="h-4 w-4 shrink-0 text-slate-400" />
+
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name, brand or category"
+                  className="h-11 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                />
+
+                {searchTerm.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    aria-label="Clear search"
+                  >
+                    <FiX className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Category
+              </label>
+
+              <SelectMenu
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={categoryOptions}
+                placeholder={
+                  loadingCategories ? "Loading categories..." : "All categories"
+                }
+                disabled={loadingCategories}
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                Status
+                Stock
               </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
-              >
-                <option value="all">All statuses</option>
-                <option value="ready">Ready</option>
-                <option value="processing">Processing</option>
-                <option value="failed">Failed</option>
-              </select>
+
+              <SelectMenu
+                value={stockFilter}
+                onChange={setStockFilter}
+                options={stockOptions}
+                placeholder="All stock states"
+              />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Sort
               </label>
-              <select
+
+              <SelectMenu
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setSortBy}
+                options={sortOptions}
+                placeholder="Newest first"
+              />
             </div>
 
             <div className="flex items-end">
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex h-10.5 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
+                <FiRotateCcw className="h-4 w-4" />
                 Reset
               </button>
             </div>
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {[
+              { value: "all", label: "All statuses" },
+              { value: "ready", label: "Ready" },
+              { value: "processing", label: "Processing" },
+              { value: "failed", label: "Failed" },
+            ].map((option) => {
+              const isActive = statusFilter === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setStatusFilter(option.value)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeFilterPills.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              {activeFilterPills.map((pill) => (
+                <button
+                  key={pill.key}
+                  type="button"
+                  onClick={pill.onRemove}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                >
+                  <span>{pill.label}</span>
+                  <FiX className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -364,6 +560,7 @@ const MyProducts = () => {
                 product.images?.[0]?.original;
 
               const previewBlur = product.images?.[0]?.blurDataURL;
+              const categoryName = getCategoryName(product, categoryNameById);
 
               return (
                 <article
@@ -393,26 +590,44 @@ const MyProducts = () => {
                           {product.name}
                         </h2>
 
-                        <p className="mt-1 text-sm text-slate-500">
-                          Created {formatDate(product.createdAt)}
-                        </p>
+                        <div className="flex mr-4">
+                          <p className="mt-1 text-sm text-slate-500 mr-3.5">
+                            Created {formatDate(product.createdAt)}
+                          </p>
 
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
-                              statusStyles[product.status] ||
-                              statusStyles.processing
-                            }`}
-                          >
-                            {product.status}
-                          </span>
-
-                          {product.brand ? (
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                              {product.brand}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                                statusStyles[product.status] ||
+                                statusStyles.processing
+                              }`}
+                            >
+                              {product.status}
                             </span>
-                          ) : null}
+                          </div>
                         </div>
+
+                        {(product.brand || categoryName) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
+                            {product.brand ? (
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-center shadow-sm">
+                                <span className="font-medium text-slate-600">
+                                  Brand:
+                                </span>{" "}
+                                {product.brand}
+                              </span>
+                            ) : null}
+
+                            {categoryName ? (
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-center shadow-sm">
+                                <span className="font-medium text-slate-600">
+                                  Category:
+                                </span>{" "}
+                                {categoryName}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
 
                         {product.status === "failed" &&
                           product.processingError && (

@@ -15,7 +15,6 @@ import {
 } from "../../redux/api/productApiSlice";
 import { addToCart } from "../../redux/features/cart/cartSlice";
 import FavoriteButton from "../../components/Button/FavoriteButton";
-import { FaHeart, FaRegHeart } from "react-icons/fa";
 
 const overlayIconStyle = {
   stroke: "rgba(0,0,0,0.95)",
@@ -31,6 +30,9 @@ const getCategoryId = (item) => {
     ? item.category?._id || ""
     : item.category;
 };
+
+const getAvailableStock = (item) =>
+  Math.max(0, Number(item?.availableStock ?? item?.countInStock ?? 0));
 
 const normalizeBrand = (value = "") => value.trim().toLowerCase();
 
@@ -88,7 +90,7 @@ const getSuggestedProducts = ({ currentProduct, products, limit = 6 }) => {
   if (!baseCandidates.length) return [];
 
   const availableCandidates = baseCandidates.filter(
-    (candidate) => Number(candidate.countInStock) > 0,
+    (candidate) => getAvailableStock(candidate) > 0,
   );
 
   const rankingPool =
@@ -102,6 +104,7 @@ const getSuggestedProducts = ({ currentProduct, products, limit = 6 }) => {
 
       const candidateCategoryId = getCategoryId(candidate);
       const candidateBrand = normalizeBrand(candidate.brand);
+      const candidateAvailableStock = getAvailableStock(candidate);
 
       if (candidateCategoryId && candidateCategoryId === currentCategoryId) {
         score += 60;
@@ -116,7 +119,7 @@ const getSuggestedProducts = ({ currentProduct, products, limit = 6 }) => {
         Number(candidate.price || 0),
       );
 
-      if (Number(candidate.countInStock) > 0) {
+      if (candidateAvailableStock > 0) {
         score += 10;
       } else {
         score -= 12;
@@ -290,6 +293,10 @@ const ProductDetails = () => {
     });
   }, [product?.createdAt]);
 
+  const currentAvailableStock = useMemo(() => {
+    return getAvailableStock(product);
+  }, [product]);
+
   const productInfoRows = useMemo(() => {
     if (!product) return [];
 
@@ -304,14 +311,14 @@ const ProductDetails = () => {
       },
       {
         label: "Available stock",
-        value: product.countInStock,
+        value: currentAvailableStock,
       },
       {
         label: "Created",
         value: createdDate,
       },
     ];
-  }, [product, createdDate]);
+  }, [product, currentAvailableStock, createdDate]);
 
   const suggestedProducts = useMemo(() => {
     return getSuggestedProducts({
@@ -334,7 +341,7 @@ const ProductDetails = () => {
     return product.reviews.some((review) => review.user === userInfo._id);
   }, [product?.reviews, userInfo?._id]);
 
-  const maxPurchaseQuantity = Math.max(0, Number(product?.countInStock || 0));
+  const maxPurchaseQuantity = currentAvailableStock;
 
   const totalPrice = useMemo(() => {
     if (!product) return "$0";
@@ -401,7 +408,7 @@ const ProductDetails = () => {
         name: product.name,
         image: cartPreviewImage,
         price: Number(product.price),
-        countInStock: Number(product.countInStock),
+        countInStock: currentAvailableStock,
         qty: Number(purchaseQuantity),
       }),
     );
@@ -800,18 +807,18 @@ const ProductDetails = () => {
 
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    product.countInStock > 0
+                    currentAvailableStock > 0
                       ? "bg-emerald-50 text-emerald-700"
                       : "bg-rose-50 text-rose-700"
                   }`}
                 >
-                  {product.countInStock > 0 ? "Available" : "Out of stock"}
+                  {currentAvailableStock > 0 ? "Available" : "Out of stock"}
                 </span>
               </div>
 
               <div className="mt-4 flex items-center gap-3 ">
                 <RatingStars value={product.rating} iconClassName="text-sm" />
-                <p className="text-sm text-slate-500 cursor-pointer">
+                <p className="cursor-pointer text-sm text-slate-500">
                   {Number(product.rating || 0).toFixed(1)} ·{" "}
                   {product.numReviews}{" "}
                   {product.numReviews === 1 ? "review" : "reviews"}
@@ -822,7 +829,7 @@ const ProductDetails = () => {
                 <div className="flex items-center justify-between gap-4">
                   <span>Available stock</span>
                   <span className="font-medium text-slate-900">
-                    {product.countInStock}
+                    {currentAvailableStock}
                   </span>
                 </div>
 
@@ -887,7 +894,7 @@ const ProductDetails = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={product.countInStock === 0}
+                disabled={currentAvailableStock === 0}
                 className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Add to cart

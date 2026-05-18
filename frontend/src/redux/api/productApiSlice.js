@@ -47,6 +47,52 @@ export const productApiSlice = apiSlice.injectEndpoints({
       ],
     }),
 
+    getPublicProductsBrowse: builder.query({
+      query: ({
+        pageNumber = 1,
+        pageSize = 20,
+        keyword = "",
+        category = "all",
+        stock = "all",
+        minPrice = "",
+        maxPrice = "",
+        sortBy = "newest",
+      } = {}) => {
+        const searchParams = new URLSearchParams();
+
+        searchParams.set("pageNumber", String(pageNumber));
+        searchParams.set("pageSize", String(pageSize));
+
+        if (keyword.trim()) {
+          searchParams.set("keyword", keyword.trim());
+        }
+
+        if (category && category !== "all") {
+          searchParams.set("category", category);
+        }
+
+        if (stock && stock !== "all") {
+          searchParams.set("stock", stock);
+        }
+
+        if (minPrice !== "" && minPrice !== null && minPrice !== undefined) {
+          searchParams.set("minPrice", String(minPrice));
+        }
+
+        if (maxPrice !== "" && maxPrice !== null && maxPrice !== undefined) {
+          searchParams.set("maxPrice", String(maxPrice));
+        }
+
+        if (sortBy && sortBy !== "newest") {
+          searchParams.set("sortBy", sortBy);
+        }
+
+        return `${PRODUCTS_URL}/browse?${searchParams.toString()}`;
+      },
+      providesTags: ["Product"],
+      keepUnusedDataFor: 5,
+    }),
+
     getPublicProducts: builder.query({
       query: () => PRODUCTS_URL,
       providesTags: ["Product"],
@@ -89,6 +135,7 @@ export const {
   useUpdateProductMutation,
   useDeleteProductMutation,
   useCreateProductReviewMutation,
+  useGetPublicProductsBrowseQuery,
   useGetPublicProductsQuery,
   useGetPublicProductByIdQuery,
   useGetMyProductsQuery,

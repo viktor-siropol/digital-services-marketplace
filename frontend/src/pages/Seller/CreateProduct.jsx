@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
+import SelectMenu from "../../components/form/SelectMenu";
 import { useAddProductMutation } from "../../redux/api/productApiSlice";
 import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
-
-const formatFileSize = (size) => `${(size / 1024 / 1024).toFixed(2)} MB`;
 
 const CreateProduct = () => {
   const [name, setName] = useState("");
@@ -22,11 +21,19 @@ const CreateProduct = () => {
   const imagesRef = useRef([]);
 
   const [addProduct, { isLoading: creating }] = useAddProductMutation();
+
   const {
     data: categories = [],
     isLoading: loadingCategories,
     error: categoriesError,
   } = useGetCategoriesQuery();
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((item) => ({
+      label: item.name,
+      value: item._id,
+    }));
+  }, [categories]);
 
   useEffect(() => {
     imagesRef.current = images;
@@ -148,9 +155,11 @@ const CreateProduct = () => {
       setDescription("");
       setImages([]);
       setPreviewImage(null);
-    } catch (error) {
+    } catch (createError) {
       toast.error(
-        error?.data?.message || error?.error || "Failed to create product",
+        createError?.data?.message ||
+          createError?.error ||
+          "Failed to create product",
       );
     }
   };
@@ -164,7 +173,7 @@ const CreateProduct = () => {
             Seller workspace
           </div>
 
-          <h1 className="mt-3 text-[30px] font-semibold tracking-tight text-slate-900">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
             Create product
           </h1>
 
@@ -173,6 +182,12 @@ const CreateProduct = () => {
             processing and publishing.
           </p>
         </div>
+
+        {creating && (
+          <div className="mb-3 flex justify-center">
+            <Loader />
+          </div>
+        )}
 
         {categoriesError && (
           <div className="mb-3">
@@ -230,21 +245,18 @@ const CreateProduct = () => {
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Category
               </label>
-              <select
+
+              <SelectMenu
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={setCategory}
+                options={categoryOptions}
+                placeholder={
+                  loadingCategories
+                    ? "Loading categories..."
+                    : "Select category"
+                }
                 disabled={loadingCategories}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-              >
-                <option value="">
-                  {loadingCategories ? "Loading categories..." : "Select category"}
-                </option>
-                {categories.map((item) => (
-                  <option key={item._id} value={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -311,7 +323,7 @@ const CreateProduct = () => {
                     Product images
                   </label>
                   <p className="mt-1 text-xs text-slate-500">
-                    PNG, JPG or WEBP. You can add files in multiple steps.
+                    Add high-quality images for the listing preview and details.
                   </p>
                 </div>
 
@@ -329,6 +341,10 @@ const CreateProduct = () => {
                   className="block w-full text-sm text-slate-700"
                 />
               </div>
+
+              <p className="mt-2 text-xs text-slate-500">
+                PNG, JPG or WEBP. You can add files in multiple steps.
+              </p>
 
               {images.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -360,8 +376,8 @@ const CreateProduct = () => {
                           <p className="truncate text-xs font-medium text-slate-900">
                             {image.file.name}
                           </p>
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            {formatFileSize(image.file.size)}
+                          <p className="mt-1 text-xs text-slate-500">
+                            {(image.file.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       </button>
@@ -380,9 +396,7 @@ const CreateProduct = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-4 pt-1">
-              <div>{creating ? <Loader size="sm" /> : null}</div>
-
+            <div className="flex items-center justify-end gap-4 pt-1">
               <button
                 type="submit"
                 disabled={creating || loadingCategories}

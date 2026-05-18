@@ -120,9 +120,28 @@ const orderSchema = new mongoose.Schema(
       default: () => ({}),
     },
 
+    reservationStatus: {
+      type: String,
+      enum: ["active", "converted", "expired", "released"],
+      default: "active",
+      index: true,
+    },
+
+    expiresAt: {
+      type: Date,
+      index: true,
+    },
+
     orderStatus: {
       type: String,
-      enum: ["placed", "processing", "shipped", "delivered", "cancelled"],
+      enum: [
+        "placed",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "expired",
+      ],
       default: "placed",
       index: true,
     },
@@ -143,6 +162,8 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+orderSchema.index({ reservationStatus: 1, expiresAt: 1, paymentStatus: 1 });
 
 const Order = mongoose.model("Order", orderSchema);
 
