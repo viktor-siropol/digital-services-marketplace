@@ -1,28 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FiChevronDown } from "react-icons/fi";
 import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import Loader from "../../components/Loader";
+import Message from "../../components/Message";
+import ProductImagePreview from "../../components/ProductImagePreview";
 import {
   useGetMyProductByIdQuery,
   useUpdateProductMutation,
 } from "../../redux/api/productApiSlice";
 import { useGetCategoriesQuery } from "../../redux/api/categoryApiSlice";
-import Loader from "../../components/Loader";
-import Message from "../../components/Message";
-import ProductImagePreview from "../../components/ProductImagePreview";
-import { toast } from "react-toastify";
-import { IoClose } from "react-icons/io5";
 
 const statusStyles = {
-  ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  processing: "bg-amber-50 text-amber-700 border-amber-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
+  ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  processing: "border-amber-200 bg-amber-50 text-amber-700",
+  failed: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-const overlayIconStyle = {
-  stroke: "rgba(0,0,0,0.95)",
-  strokeWidth: 18,
-  filter:
-    "drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 1px 3px rgba(0,0,0,0.85))",
-};
+const formatFileSize = (size) => `${(size / 1024 / 1024).toFixed(2)} MB`;
 
 const ManageProduct = () => {
   const { id } = useParams();
@@ -186,13 +181,13 @@ const ManageProduct = () => {
 
     const formData = new FormData();
 
-    formData.append("name", name);
-    formData.append("brand", brand);
+    formData.append("name", name.trim());
+    formData.append("brand", brand.trim());
     formData.append("category", category);
     formData.append("price", price);
     formData.append("quantity", quantity);
     formData.append("countInStock", countInStock);
-    formData.append("description", description);
+    formData.append("description", description.trim());
     formData.append(
       "retainedImageIds",
       JSON.stringify(existingImages.map((img) => img.imageId)),
@@ -227,12 +222,12 @@ const ManageProduct = () => {
 
       setNewImages([]);
       setPreviewImage(null);
-    } catch (error) {
-      toast.error(error?.data?.message || "Updating product failed");
+    } catch (updateError) {
+      toast.error(updateError?.data?.message || "Updating product failed");
     }
   };
 
-  if (isLoading || loadingCategories) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
         <Loader />
@@ -242,79 +237,75 @@ const ManageProduct = () => {
 
   if (error || categoriesError) {
     return (
-      <div className="p-6">
-        <Message variant="danger">
-          {error?.data?.message ||
-            categoriesError?.data?.message ||
-            error?.error ||
-            categoriesError?.error ||
-            "Failed to load product data"}
-        </Message>
+      <div className="min-h-[calc(100vh-64px)] bg-slate-50">
+        <div className="mx-auto max-w-205 px-4 py-4 md:px-6">
+          <Message variant="danger">
+            {error?.data?.message ||
+              categoriesError?.data?.message ||
+              error?.error ||
+              categoriesError?.error ||
+              "Failed to load product data"}
+          </Message>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative z-0 min-h-[calc(100vh-64px)] overflow-hidden bg-slate-50">
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-violet-200/30" />
-        <div className="absolute -right-24 top-28 h-52 w-52 rounded-full bg-slate-200/40" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-100/30" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-3 py-1 text-xs font-medium text-violet-700 shadow-sm backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-violet-500" />
-              Seller workspace
-            </div>
-
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-              Edit Product
-            </h1>
-
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Edit product details, manage current images, and upload new ones.
-            </p>
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50">
+      <div className="mx-auto max-w-205 px-4 py-4 md:px-6">
+        <div className="mb-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-slate-900" />
+            Seller workspace
           </div>
 
-          <div
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-              statusStyles[product?.status] || statusStyles.processing
-            }`}
-          >
-            {product?.status || "processing"}
+          <div className="mt-3 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[30px] font-semibold tracking-tight text-slate-900">
+                Edit product
+              </h1>
+
+              <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                Update the core product information and adjust the image set for
+                this listing.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {product?.status === "processing" && (
+                <span className="text-xs font-medium text-slate-500">
+                  {isFetching ? "Syncing..." : "Auto-refresh on"}
+                </span>
+              )}
+
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                  statusStyles[product?.status] || statusStyles.processing
+                }`}
+              >
+                {product?.status || "processing"}
+              </span>
+            </div>
           </div>
         </div>
 
         <form
-          className="overflow-hidden rounded-3xl border border-white/70 bg-white/80 shadow-[0_16px_48px_rgba(15,23,42,0.08)] backdrop-blur"
           onSubmit={submitHandler}
+          className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm"
         >
-          <div className="border-b border-slate-100 bg-linear-to-r from-violet-50 via-fuchsia-50 to-cyan-50 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-700">
-                  Product editor
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {product?.status === "processing"
-                    ? "Images are being refreshed automatically while processing runs."
-                    : "Changes are saved to the product and image set together."}
-                </p>
-              </div>
-
-              {product?.status === "processing" && (
-                <span className="text-xs font-medium text-amber-700">
-                  {isFetching ? "Syncing..." : "Auto-refresh on"}
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col gap-1 border-b border-slate-100 pb-3">
+            <h2 className="text-base font-semibold text-slate-900">
+              Product details
+            </h2>
+            <p className="text-sm text-slate-500">
+              Edit the fields below to keep this listing accurate and ready for
+              customers.
+            </p>
           </div>
 
-          <div className="space-y-4 p-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="mt-4 space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Product name
@@ -324,7 +315,7 @@ const ManageProduct = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter product name"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
@@ -337,7 +328,7 @@ const ManageProduct = () => {
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
                   placeholder="Enter brand"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
             </div>
@@ -346,18 +337,28 @@ const ManageProduct = () => {
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Category
               </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              >
-                <option value="">Select category</option>
-                {categories.map((item) => (
-                  <option key={item._id} value={item._id}>
-                    {item.name}
+
+              <div className="relative">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={loadingCategories}
+                  className="h-12 w-full appearance-none rounded-full border border-slate-200 bg-white px-5 pr-11 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-slate-300 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                >
+                  <option value="">
+                    {loadingCategories
+                      ? "Loading categories..."
+                      : "Select category"}
                   </option>
-                ))}
-              </select>
+                  {categories.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+
+                <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -371,7 +372,7 @@ const ManageProduct = () => {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="Enter price"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
@@ -385,7 +386,7 @@ const ManageProduct = () => {
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   placeholder="Enter quantity"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
@@ -399,7 +400,7 @@ const ManageProduct = () => {
                   value={countInStock}
                   onChange={(e) => setCountInStock(e.target.value)}
                   placeholder="Enter stock count"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
             </div>
@@ -413,29 +414,34 @@ const ManageProduct = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Enter product description"
-                className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               />
             </div>
 
-            <div className="rounded-2xl border border-violet-100 bg-linear-to-br from-violet-50/80 to-cyan-50/80 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Current images
-                </label>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2.5 flex items-center justify-between gap-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-700">
+                    Product images
+                  </label>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Review current images and add new files when needed.
+                  </p>
+                </div>
 
-                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-violet-700 shadow-sm">
-                  {existingImages.length} current
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+                    {existingImages.length} current
+                  </span>
+
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+                    {newImages.length} new
+                  </span>
+                </div>
               </div>
 
-              {existingImages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-3 py-6 text-center text-sm text-slate-500">
-                  {product?.status === "processing"
-                    ? "Images are still processing. This section refreshes automatically."
-                    : "No current images."}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {existingImages.length > 0 ? (
+                <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {existingImages.map((image) => (
                     <div
                       key={image.imageId}
@@ -459,15 +465,15 @@ const ManageProduct = () => {
                           }
                           blurDataURL={image.blurDataURL}
                           alt={image.alt || image.imageId}
-                          className="h-24 w-full object-cover"
-                          wrapperClassName="h-24 w-full"
+                          wrapperClassName="aspect-square w-full bg-slate-50"
+                          className="h-full w-full object-cover"
                         />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => removeExistingImage(image.imageId)}
-                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-medium text-rose-600 shadow hover:bg-white"
+                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-xs font-medium text-rose-600 shadow hover:bg-white"
                         aria-label="Remove current image"
                       >
                         ×
@@ -475,34 +481,30 @@ const ManageProduct = () => {
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className="mb-3 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-5 text-center text-sm text-slate-500">
+                  {product?.status === "processing"
+                    ? "Images are still processing. This section refreshes automatically."
+                    : "No current images."}
+                </div>
               )}
-            </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Add new images
-                </label>
-
-                <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
-                  {newImages.length} new
-                </span>
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-2.5">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleNewImagesChange}
+                  className="block w-full text-sm text-slate-700"
+                />
               </div>
 
-              <input
-                type="file"
-                multiple
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleNewImagesChange}
-                className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              />
-
               <p className="mt-2 text-xs text-slate-500">
-                Update product details, pricing, stock and media.
+                PNG, JPG or WEBP. You can add files in multiple steps.
               </p>
 
               {newImages.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {newImages.map((image) => (
                     <div
                       key={image.id}
@@ -532,7 +534,7 @@ const ManageProduct = () => {
                             {image.file.name}
                           </p>
                           <p className="mt-1 text-[11px] text-slate-500">
-                            {(image.file.size / 1024 / 1024).toFixed(2)} MB
+                            {formatFileSize(image.file.size)}
                           </p>
                         </div>
                       </button>
@@ -540,7 +542,7 @@ const ManageProduct = () => {
                       <button
                         type="button"
                         onClick={() => removeNewImage(image.id)}
-                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-medium text-rose-600 shadow hover:bg-white"
+                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-xs font-medium text-rose-600 shadow hover:bg-white"
                         aria-label="Remove new image"
                       >
                         ×
@@ -551,11 +553,21 @@ const ManageProduct = () => {
               )}
             </div>
 
-            <div className="flex justify-end pt-1">
+            {product?.status === "failed" && product?.processingError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-sm text-rose-700">
+                  {product.processingError}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4 pt-1">
+              <div>{updating ? <Loader size="sm" /> : null}</div>
+
               <button
                 type="submit"
-                disabled={updating || !hasChanges}
-                className="inline-flex items-center rounded-2xl bg-linear-to-r from-violet-600 to-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-[0_10px_24px_rgba(99,102,241,0.28)] transition hover:from-violet-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={updating || loadingCategories || !hasChanges}
+                className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {updating ? "Updating..." : "Update product"}
               </button>
@@ -576,13 +588,10 @@ const ManageProduct = () => {
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute right-4 top-4 z-10 p-1 transition hover:scale-105"
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg font-semibold text-slate-700 shadow hover:bg-white"
               aria-label="Close preview"
             >
-              <IoClose
-                className="text-[42px] text-white"
-                style={overlayIconStyle}
-              />
+              ×
             </button>
 
             <img

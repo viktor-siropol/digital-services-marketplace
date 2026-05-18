@@ -202,7 +202,7 @@ const RatingStars = ({
               key={index}
               type="button"
               onClick={() => onSelect?.(index + 1)}
-              className={`transition ${
+              className={`cursor-pointer transition ${
                 filled
                   ? "text-amber-400"
                   : "text-slate-300 hover:text-amber-300"
@@ -809,9 +809,9 @@ const ProductDetails = () => {
                 </span>
               </div>
 
-              <div className="mt-4 flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3 ">
                 <RatingStars value={product.rating} iconClassName="text-sm" />
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 cursor-pointer">
                   {Number(product.rating || 0).toFixed(1)} ·{" "}
                   {product.numReviews}{" "}
                   {product.numReviews === 1 ? "review" : "reviews"}

@@ -24,8 +24,8 @@ import MyProducts from "./pages/Seller/MyProducts";
 import ManageProduct from "./pages/Seller/ManageProduct";
 import CreateProduct from "./pages/Seller/CreateProduct";
 import Favorites from "./pages/User/Favorites";
-import Loader from "./components/Loader";
 import SellerOrders from "./pages/Seller/SellerOrders";
+import Footer from "./components/Footer";
 
 const Layout = () => {
   return (
@@ -46,6 +46,8 @@ const Layout = () => {
       <main className="min-h-[calc(100vh-64px)]">
         <Outlet />
       </main>
+
+      <Footer />
     </>
   );
 };
@@ -57,7 +59,6 @@ const router = createBrowserRouter(
       <Route path="shop" element={<Shop />} />
       <Route path="cart" element={<Cart />} />
       <Route path="products/:id" element={<ProductDetails />} />
-      <Route path="loader" element={<Loader />} />
 
       <Route path="login" element={<Login />} />
       <Route path="register" element={<Register />} />

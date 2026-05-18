@@ -37,10 +37,16 @@ const UserList = () => {
   const { userInfo } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
+  const currentlyEditedUser = useMemo(() => {
+    return users.find((user) => user._id === editableUserId) || null;
+  }, [users, editableUserId]);
+
   const summary = useMemo(() => {
     const total = users.length;
     const admins = users.filter((user) => user.isAdmin).length;
-    const sellers = users.filter((user) => user.isSeller).length;
+    const sellers = users.filter(
+      (user) => !user.isAdmin && user.isSeller,
+    ).length;
     const customers = users.filter(
       (user) => !user.isAdmin && !user.isSeller,
     ).length;
@@ -110,12 +116,17 @@ const UserList = () => {
     try {
       setSavingId(id);
 
-      const updated = await updateUser({
+      const payload = {
         id,
         username: trimmedUserName,
         email: trimmedEmail,
-        isSeller: editableUserIsSeller,
-      }).unwrap();
+      };
+
+      if (!currentlyEditedUser?.isAdmin) {
+        payload.isSeller = editableUserIsSeller;
+      }
+
+      const updated = await updateUser(payload).unwrap();
 
       toast.success("User updated");
       closeEdit();
@@ -160,6 +171,10 @@ const UserList = () => {
   };
 
   const toggleSeller = async (user) => {
+    if (user.isAdmin) {
+      return;
+    }
+
     try {
       setSellerToggleId(user._id);
 
@@ -283,7 +298,7 @@ const UserList = () => {
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
-                className="inline-flex h-10.5 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
                 Reset
               </button>
@@ -352,17 +367,19 @@ const UserList = () => {
                             </div>
                           </div>
 
-                          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={editableUserIsSeller}
-                              onChange={(e) =>
-                                setEditableUserIsSeller(e.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
-                            />
-                            <span>Seller access</span>
-                          </label>
+                          {!user.isAdmin && (
+                            <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={editableUserIsSeller}
+                                onChange={(e) =>
+                                  setEditableUserIsSeller(e.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+                              />
+                              <span>Seller access</span>
+                            </label>
+                          )}
                         </div>
                       ) : (
                         <div className="min-w-0">
@@ -425,22 +442,24 @@ const UserList = () => {
                         </>
                       ) : (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => toggleSeller(user)}
-                            disabled={isTogglingSeller}
-                            className={`inline-flex min-w-31 items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                              user.isSeller
-                                ? "border-slate-200 bg-slate-900 text-white hover:bg-slate-800"
-                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                            }`}
-                          >
-                            {isTogglingSeller
-                              ? "Updating..."
-                              : user.isSeller
-                                ? "Disable seller"
-                                : "Enable seller"}
-                          </button>
+                          {!user.isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSeller(user)}
+                              disabled={isTogglingSeller}
+                              className={`inline-flex min-w-32 items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                user.isSeller
+                                  ? "border-slate-200 bg-slate-900 text-white hover:bg-slate-800"
+                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {isTogglingSeller
+                                ? "Updating..."
+                                : user.isSeller
+                                  ? "Disable seller"
+                                  : "Enable seller"}
+                            </button>
+                          )}
 
                           <button
                             type="button"
