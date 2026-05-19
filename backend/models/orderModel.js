@@ -36,6 +36,21 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+
+    fulfillmentStatus: {
+      type: String,
+      enum: ["placed", "processing", "shipped", "delivered"],
+      default: "placed",
+      index: true,
+    },
+
+    shippedAt: {
+      type: Date,
+    },
+
+    deliveredAt: {
+      type: Date,
+    },
   },
   { _id: false },
 );
@@ -63,6 +78,42 @@ const paymentResultSchema = new mongoose.Schema(
     },
 
     status: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: false },
+);
+
+const refundResultSchema = new mongoose.Schema(
+  {
+    paypalRefundId: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "",
+    },
+
+    amount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    currencyCode: {
+      type: String,
+      default: "USD",
+    },
+
+    reason: {
+      type: String,
+      default: "",
+    },
+
+    refundedBy: {
       type: String,
       default: "",
     },
@@ -120,6 +171,18 @@ const orderSchema = new mongoose.Schema(
       default: () => ({}),
     },
 
+    refundStatus: {
+      type: String,
+      enum: ["none", "pending", "completed", "failed"],
+      default: "none",
+      index: true,
+    },
+
+    refundResult: {
+      type: refundResultSchema,
+      default: () => ({}),
+    },
+
     reservationStatus: {
       type: String,
       enum: ["active", "converted", "expired", "released"],
@@ -156,7 +219,15 @@ const orderSchema = new mongoose.Schema(
       type: Date,
     },
 
+    refundedAt: {
+      type: Date,
+    },
+
     deliveredAt: {
+      type: Date,
+    },
+
+    inventoryRestockedAt: {
       type: Date,
     },
   },

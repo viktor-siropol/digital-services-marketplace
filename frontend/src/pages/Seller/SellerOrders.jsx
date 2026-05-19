@@ -1,15 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiRotateCcw, FiSearch, FiX } from "react-icons/fi";
-import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 import Message from "../../components/Message";
 import ProductImagePreview from "../../components/ProductImagePreview";
 import SelectMenu from "../../components/form/SelectMenu";
-import {
-  useGetMySalesOrdersQuery,
-  useUpdateSellerOrderStatusMutation,
-} from "../../redux/api/orderApiSlice";
+import { useGetMySalesOrdersQuery } from "../../redux/api/orderApiSlice";
 
 const formatPrice = (value) => `$${Number(value || 0).toFixed(2)}`;
 
@@ -34,6 +30,13 @@ const orderStatusStyles = {
   delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
   cancelled: "bg-rose-50 text-rose-700 border-rose-200",
   expired: "bg-slate-100 text-slate-700 border-slate-200",
+};
+
+const fulfillmentStatusStyles = {
+  placed: "bg-slate-100 text-slate-700 border-slate-200",
+  processing: "bg-violet-50 text-violet-700 border-violet-200",
+  shipped: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const paymentFilterOptions = [
@@ -61,20 +64,17 @@ const sortOptions = [
   { value: "total-asc", label: "Total: low to high" },
 ];
 
-const getAdvanceActionLabel = (status) => {
-  if (status === "processing") return "Mark as processing";
-  if (status === "shipped") return "Mark as shipped";
-  if (status === "delivered") return "Mark as delivered";
-  return "Advance status";
+const formatFulfillmentLabel = (value) => {
+  if (value === "placed") return "Placed";
+  if (value === "processing") return "Processing";
+  if (value === "shipped") return "Shipped";
+  if (value === "delivered") return "Delivered";
+  return "Placed";
 };
 
 const SellerOrders = () => {
   const { data: orders = [], isLoading, error } = useGetMySalesOrdersQuery();
 
-  const [updateSellerOrderStatus, { isLoading: updatingOrderStatus }] =
-    useUpdateSellerOrderStatusMutation();
-
-  const [busyOrderId, setBusyOrderId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -85,8 +85,8 @@ const SellerOrders = () => {
       total: orders.length,
       paid: orders.filter((order) => order.paymentStatus === "paid").length,
       unpaid: orders.filter((order) => order.paymentStatus === "unpaid").length,
-      active: orders.filter((order) =>
-        ["placed", "processing", "shipped"].includes(order.orderStatus),
+      actionable: orders.filter(
+        (order) => Number(order.actionableItemsCount || 0) > 0,
       ).length,
     };
   }, [orders]);
@@ -123,19 +123,16 @@ const SellerOrders = () => {
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
         break;
-
       case "total-desc":
         items.sort(
           (a, b) => Number(b.totalPrice || 0) - Number(a.totalPrice || 0),
         );
         break;
-
       case "total-asc":
         items.sort(
           (a, b) => Number(a.totalPrice || 0) - Number(b.totalPrice || 0),
         );
         break;
-
       case "newest":
       default:
         items.sort(
@@ -193,31 +190,6 @@ const SellerOrders = () => {
     setSortBy("newest");
   };
 
-  const handleAdvanceOrderStatus = async (order) => {
-    if (!order?.nextAllowedStatus) {
-      return;
-    }
-
-    try {
-      setBusyOrderId(order._id);
-
-      await updateSellerOrderStatus({
-        orderId: order._id,
-        nextStatus: order.nextAllowedStatus,
-      }).unwrap();
-
-      toast.success(`Order marked as ${order.nextAllowedStatus}`);
-    } catch (updateError) {
-      toast.error(
-        updateError?.data?.message ||
-          updateError?.error ||
-          "Failed to update seller order status",
-      );
-    } finally {
-      setBusyOrderId("");
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
@@ -271,8 +243,8 @@ const SellerOrders = () => {
             Sales Orders
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Review orders that include your products and track fulfillment
-            status.
+            Review orders that include your products and manage item-level
+            fulfillment.
           </p>
         </div>
 
@@ -306,10 +278,10 @@ const SellerOrders = () => {
 
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Active
+              Need action
             </p>
             <p className="mt-1 text-lg font-semibold text-slate-900">
-              {summary.active}
+              {summary.actionable}
             </p>
           </div>
         </div>
@@ -447,8 +419,6 @@ const SellerOrders = () => {
               const firstItem = order.orderItems[0];
               const previewImage = firstItem?.image || "";
               const extraItemsCount = Math.max(0, order.orderItems.length - 1);
-              const isCurrentOrderBusy =
-                updatingOrderStatus && busyOrderId === order._id;
 
               return (
                 <article
@@ -506,12 +476,28 @@ const SellerOrders = () => {
                               orderStatusStyles.placed
                             }`}
                           >
-                            Status: {order.orderStatus}
+                            Order: {order.orderStatus}
                           </span>
 
                           <span className="text-xs text-slate-500">
                             Items sold: {itemCount}
                           </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {Object.entries(order.sellerItemCounts || {})
+                            .filter(([, count]) => Number(count) > 0)
+                            .map(([status, count]) => (
+                              <span
+                                key={`${order._id}-${status}`}
+                                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                                  fulfillmentStatusStyles[status] ||
+                                  fulfillmentStatusStyles.placed
+                                }`}
+                              >
+                                {formatFulfillmentLabel(status)}: {count}
+                              </span>
+                            ))}
                         </div>
 
                         {order.lifecycleBlockedReason ? (
@@ -539,29 +525,24 @@ const SellerOrders = () => {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        {order.actionableItemsCount > 0 ? (
+                          <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">
+                            {order.actionableItemsCount} item
+                            {order.actionableItemsCount === 1 ? "" : "s"} need
+                            an update
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
+                            No pending item actions
+                          </div>
+                        )}
+
                         <Link
                           to={order._id.toString()}
                           className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                         >
                           View details
                         </Link>
-
-                        {order.canManageLifecycle && order.nextAllowedStatus ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAdvanceOrderStatus(order)}
-                            disabled={isCurrentOrderBusy}
-                            className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isCurrentOrderBusy
-                              ? "Updating..."
-                              : getAdvanceActionLabel(order.nextAllowedStatus)}
-                          </button>
-                        ) : (
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
-                            Read-only lifecycle
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

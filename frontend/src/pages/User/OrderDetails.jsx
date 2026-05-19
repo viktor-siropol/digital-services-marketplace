@@ -64,6 +64,21 @@ const orderStatusStyles = {
   expired: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
+const fulfillmentStatusStyles = {
+  placed: "bg-slate-100 text-slate-700 border-slate-200",
+  processing: "bg-violet-50 text-violet-700 border-violet-200",
+  shipped: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
+
+const formatFulfillmentLabel = (value) => {
+  if (value === "placed") return "Placed";
+  if (value === "processing") return "Processing";
+  if (value === "shipped") return "Shipped";
+  if (value === "delivered") return "Delivered";
+  return "Placed";
+};
+
 const getOrderJourneySteps = (order) => {
   const orderStatus = order?.orderStatus || "placed";
   const isPaid = Boolean(order?.isPaid);
@@ -396,6 +411,20 @@ const OrderDetails = () => {
   const journeySteps = getOrderJourneySteps(order);
   const journeyHeadline = getJourneyHeadline(order);
 
+  const itemFulfillmentCounts = order.orderItems.reduce(
+    (acc, item) => {
+      const status = item.fulfillmentStatus || "placed";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    },
+    {
+      placed: 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+    },
+  );
+
   return (
     <>
       <div className="min-h-[calc(100vh-64px)] bg-slate-50">
@@ -538,6 +567,29 @@ const OrderDetails = () => {
                           <p className="mt-1 text-sm text-slate-500">
                             Quantity: {item.qty}
                           </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                                fulfillmentStatusStyles[
+                                  item.fulfillmentStatus
+                                ] || fulfillmentStatusStyles.placed
+                              }`}
+                            >
+                              {formatFulfillmentLabel(item.fulfillmentStatus)}
+                            </span>
+
+                            {item.shippedAt ? (
+                              <span className="text-xs text-slate-500">
+                                Shipped {formatDateTime(item.shippedAt)}
+                              </span>
+                            ) : null}
+
+                            {item.deliveredAt ? (
+                              <span className="text-xs text-slate-500">
+                                Delivered {formatDateTime(item.deliveredAt)}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div className="text-left sm:text-right">
@@ -654,6 +706,30 @@ const OrderDetails = () => {
                     >
                       {order.orderStatus}
                     </span>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4" />
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">
+                      Item fulfillment
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(itemFulfillmentCounts)
+                        .filter(([, count]) => Number(count) > 0)
+                        .map(([status, count]) => (
+                          <span
+                            key={`summary-${status}`}
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                              fulfillmentStatusStyles[status] ||
+                              fulfillmentStatusStyles.placed
+                            }`}
+                          >
+                            {formatFulfillmentLabel(status)}: {count}
+                          </span>
+                        ))}
+                    </div>
                   </div>
 
                   {!order.isPaid && !isOrderCancelled && (

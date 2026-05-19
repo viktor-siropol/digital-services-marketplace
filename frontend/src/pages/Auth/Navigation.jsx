@@ -14,6 +14,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { logout } from "../../redux/features/auth/authSlice";
+import { apiSlice } from "../../redux/api/apiSlice";
 import { generateAvatarColor } from "../../utils/avatarColor";
 import logo from "../../assets/images/logo.svg";
 
@@ -35,6 +36,7 @@ const Navigation = () => {
   const { cartItems = [] } = useSelector((state) => state.cart);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef(null);
 
   const cartItemsCount = useMemo(() => {
@@ -78,9 +80,25 @@ const Navigation = () => {
     return items;
   }, [userInfo]);
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    try {
+      setIsLoggingOut(true);
+
+      await fetch("/api/users/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      dispatch(logout());
+      dispatch(apiSlice.util.resetApiState());
+      setIsOpen(false);
+      setIsLoggingOut(false);
+      navigate("/login");
+    }
   };
 
   const toggleDropdown = () => {
@@ -317,10 +335,13 @@ const Navigation = () => {
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+                        disabled={isLoggingOut}
+                        className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <FiLogOut className="h-4 w-4" />
-                        <span>Log out</span>
+                        <span>
+                          {isLoggingOut ? "Logging out..." : "Log out"}
+                        </span>
                       </button>
                     </div>
                   </div>

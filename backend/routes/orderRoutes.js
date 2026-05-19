@@ -9,9 +9,10 @@ import {
   getOrderById,
   getPayPalClientId,
   getSalesOrderById,
+  refundOrder,
   updateSellerOrderStatus,
 } from "../controllers/orderController.js";
-import { authenticate } from "../middlewares/authMiddleware.js";
+import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
 import {
   cancelOrderRateLimiter,
   createOrderRateLimiter,
@@ -29,6 +30,7 @@ router.get("/paypal/client-id", authenticate, getPayPalClientId);
 
 router.put("/:id/cancel", authenticate, cancelOrderRateLimiter, cancelOrder);
 router.put("/:id/status", authenticate, updateSellerOrderStatus);
+router.put("/:id/refund", authenticate, authorizeAdmin, refundOrder);
 
 router.post(
   "/:id/paypal/create",

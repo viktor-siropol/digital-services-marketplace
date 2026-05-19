@@ -78,10 +78,10 @@ export const orderApiSlice = apiSlice.injectEndpoints({
     }),
 
     updateSellerOrderStatus: builder.mutation({
-      query: ({ orderId, nextStatus }) => ({
+      query: ({ orderId, productId, nextStatus }) => ({
         url: `${ORDERS_URL}/${orderId}/status`,
         method: "PUT",
-        body: { nextStatus },
+        body: { productId, nextStatus },
       }),
       invalidatesTags: (result, error, { orderId }) => [
         "Order",
