@@ -2,6 +2,7 @@ import path from "path";
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -16,6 +17,20 @@ const port = process.env.PORT || 5000;
 connectDB();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+
+app.disable("x-powered-by");
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        "upgrade-insecure-requests": isProduction ? [] : null,
+      },
+    },
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

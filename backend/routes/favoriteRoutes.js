@@ -5,11 +5,18 @@ import {
   getMyFavoriteProducts,
   removeProductFromFavorites,
 } from "../controllers/favoriteController.js";
+import { favoriteMutationRateLimiter } from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
 router.route("/").get(authenticate, getMyFavoriteProducts);
-router.route("/:productId").post(authenticate, addProductToFavorites);
-router.route("/:productId").delete(authenticate, removeProductFromFavorites);
+router
+  .route("/:productId")
+  .post(authenticate, favoriteMutationRateLimiter, addProductToFavorites)
+  .delete(
+    authenticate,
+    favoriteMutationRateLimiter,
+    removeProductFromFavorites,
+  );
 
 export default router;

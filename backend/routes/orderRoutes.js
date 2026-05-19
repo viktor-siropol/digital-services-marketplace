@@ -12,21 +12,36 @@ import {
   updateSellerOrderStatus,
 } from "../controllers/orderController.js";
 import { authenticate } from "../middlewares/authMiddleware.js";
+import {
+  cancelOrderRateLimiter,
+  createOrderRateLimiter,
+  paymentActionRateLimiter,
+} from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
-router.route("/").post(authenticate, createOrder);
+router.route("/").post(authenticate, createOrderRateLimiter, createOrder);
 
 router.get("/mine", authenticate, getMyOrders);
 router.get("/sales", authenticate, getMySalesOrders);
 router.get("/sales/:id", authenticate, getSalesOrderById);
 router.get("/paypal/client-id", authenticate, getPayPalClientId);
 
-router.put("/:id/cancel", authenticate, cancelOrder);
+router.put("/:id/cancel", authenticate, cancelOrderRateLimiter, cancelOrder);
 router.put("/:id/status", authenticate, updateSellerOrderStatus);
 
-router.post("/:id/paypal/create", authenticate, createPayPalOrder);
-router.put("/:id/paypal/capture", authenticate, capturePayPalOrder);
+router.post(
+  "/:id/paypal/create",
+  authenticate,
+  paymentActionRateLimiter,
+  createPayPalOrder,
+);
+router.put(
+  "/:id/paypal/capture",
+  authenticate,
+  paymentActionRateLimiter,
+  capturePayPalOrder,
+);
 
 router.route("/:id").get(authenticate, getOrderById);
 

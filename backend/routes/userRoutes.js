@@ -11,15 +11,19 @@ import {
   updateUserProfileById,
 } from "../controllers/userController.js";
 import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
+import {
+  loginRateLimiter,
+  registerRateLimiter,
+} from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
 router
   .route("/")
-  .post(createUser)
+  .post(registerRateLimiter, createUser)
   .get(authenticate, authorizeAdmin, getAllUsers);
 
-router.route("/auth").post(LoginUser);
+router.route("/auth").post(loginRateLimiter, LoginUser);
 router.route("/logout").post(LogoutUser);
 
 router

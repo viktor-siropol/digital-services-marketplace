@@ -13,6 +13,7 @@ import {
   getPublicProductsBrowse,
 } from "../controllers/productController.js";
 import { uploadProductImages } from "../middlewares/uploadMiddleware.js";
+import { reviewRateLimiter } from "../middlewares/rateLimiters.js";
 
 const router = express.Router();
 
@@ -23,7 +24,12 @@ router
 
 router.get("/browse", getPublicProductsBrowse);
 router.get("/p/:id", getPublicProductById);
-router.post("/:id/reviews", authenticate, createProductReview);
+router.post(
+  "/:id/reviews",
+  authenticate,
+  reviewRateLimiter,
+  createProductReview,
+);
 
 router.get("/mine", authenticate, getMyProducts);
 router.get("/manage/:id", authenticate, getMyProductById);
