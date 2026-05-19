@@ -15,15 +15,19 @@ import {
   loginRateLimiter,
   registerRateLimiter,
 } from "../middlewares/rateLimiters.js";
+import {
+  loginAbuseProtection,
+  registerAbuseProtection,
+} from "../middlewares/authAbuseProtection.js";
 
 const router = express.Router();
 
 router
   .route("/")
-  .post(registerRateLimiter, createUser)
+  .post(registerRateLimiter, registerAbuseProtection, createUser)
   .get(authenticate, authorizeAdmin, getAllUsers);
 
-router.route("/auth").post(loginRateLimiter, LoginUser);
+router.route("/auth").post(loginRateLimiter, loginAbuseProtection, LoginUser);
 router.route("/logout").post(LogoutUser);
 
 router
