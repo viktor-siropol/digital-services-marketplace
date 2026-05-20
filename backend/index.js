@@ -1,10 +1,8 @@
-import path from "path";
-import express from "express";
 import dotenv from "dotenv";
-import cookieParser from "cookie-parser";
-import helmet from "helmet";
 
 import connectDB from "./config/db.js";
+import createApp from "./app.js";
+
 import userRoutes from "./routes/userRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
@@ -13,38 +11,20 @@ import favoriteRoutes from "./routes/favoriteRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 
 dotenv.config();
+
 const port = process.env.PORT || 5000;
 
 connectDB();
 
-const app = express();
-const isProduction = process.env.NODE_ENV === "production";
-
-app.disable("x-powered-by");
-
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    contentSecurityPolicy: {
-      directives: {
-        "upgrade-insecure-requests": isProduction ? [] : null,
-      },
-    },
-  }),
-);
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-app.use("/api/webhooks", webhookRoutes);
-
-app.use("/api/users", userRoutes);
-app.use("/api/category", categoryRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/favorites", favoriteRoutes);
-
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+const app = createApp({
+  routes: {
+    webhookRoutes,
+    userRoutes,
+    categoryRoutes,
+    productRoutes,
+    orderRoutes,
+    favoriteRoutes,
+  },
+});
 
 app.listen(port, () => console.log(`Server running on port: ${port}`));

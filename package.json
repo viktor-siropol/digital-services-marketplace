@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "backend": "nodemon backend/index.js",
     "worker": "nodemon backend/workers/imageWorker.js",
     "frontend": "npm run dev --prefix frontend",
@@ -37,5 +38,13 @@
     "nodemon": "^3.1.11",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "jsdom": "^29.1.1",
+    "mongodb-memory-server": "^11.1.0",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.6"
   }
 }
