@@ -55,6 +55,11 @@ export const formatProductForClient = (
   if (includeProcessingMeta) {
     formatted.status = raw.status;
     formatted.processingError = raw.processingError || "";
+    formatted.moderationNote = raw.moderationNote || "";
+    formatted.moderatedAt = raw.moderatedAt || null;
+    formatted.moderatedBy = raw.moderatedBy?._id
+      ? raw.moderatedBy._id.toString()
+      : (raw.moderatedBy?.toString?.() ?? raw.moderatedBy);
   }
 
   return formatted;

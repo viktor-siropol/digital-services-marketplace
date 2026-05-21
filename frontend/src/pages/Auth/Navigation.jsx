@@ -16,6 +16,7 @@ import {
 import { logout } from "../../redux/features/auth/authSlice";
 import { apiSlice } from "../../redux/api/apiSlice";
 import { generateAvatarColor } from "../../utils/avatarColor";
+import { useLogoutUserMutation } from "../../redux/api/userApiSlice";
 import logo from "../../assets/images/logo.svg";
 
 const getUserRoleLabel = (userInfo) => {
@@ -34,6 +35,7 @@ const Navigation = () => {
 
   const { userInfo } = useSelector((state) => state.auth);
   const { cartItems = [] } = useSelector((state) => state.cart);
+  const [logoutUser] = useLogoutUserMutation();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -85,11 +87,7 @@ const Navigation = () => {
 
     try {
       setIsLoggingOut(true);
-
-      await fetch("/api/users/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await logoutUser().unwrap();
     } catch (error) {
       console.error("Logout request failed:", error);
     } finally {
@@ -315,6 +313,17 @@ const Navigation = () => {
                           >
                             <FiUsers className="h-4 w-4" />
                             <span>Users</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleMenuNavigate("/admin/product-review")
+                            }
+                            className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                          >
+                            <FiPackage className="h-4 w-4" />
+                            <span>Product review</span>
                           </button>
 
                           <button

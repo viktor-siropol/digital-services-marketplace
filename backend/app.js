@@ -10,6 +10,10 @@ export const createApp = ({ routes = {} } = {}) => {
   const app = express();
   const isProduction = process.env.NODE_ENV === "production";
 
+  if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  }
+
   app.disable("x-powered-by");
 
   app.use(

@@ -41,14 +41,28 @@ const productSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["processing", "ready", "failed"],
-      default: "ready",
+      enum: ["processing", "pending_review", "ready", "rejected", "failed"],
+      default: "pending_review",
       index: true,
     },
 
     processingError: {
       type: String,
       default: "",
+    },
+
+    moderationNote: {
+      type: String,
+      default: "",
+    },
+
+    moderatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    moderatedAt: {
+      type: Date,
     },
 
     brand: { type: String, required: true },

@@ -29,6 +29,7 @@ import Footer from "./components/Footer";
 import SellerOrderDetails from "./pages/Seller/SellerOrderDetails";
 import RouteErrorPage from "./components/RouteErrorPage";
 import NotFound from "./components/NotFound";
+import ProductReview from "./pages/Admin/ProductReview";
 
 const Layout = () => {
   return (
@@ -84,6 +85,7 @@ const router = createBrowserRouter(
       <Route element={<RoleRoute allowedRoles={["admin"]} />}>
         <Route path="admin/userlist" element={<UserList />} />
         <Route path="admin/category" element={<CategoryList />} />
+        <Route path="/admin/product-review" element={<ProductReview />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

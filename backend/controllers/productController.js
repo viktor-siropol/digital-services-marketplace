@@ -85,10 +85,15 @@ const getImageProcessingMode = () => {
   return process.env.IMAGE_PROCESSING_MODE === "sync" ? "sync" : "queue";
 };
 
+const getProductStatusAfterImageProcessing = (user) => {
+  return user?.isAdmin ? "ready" : "pending_review";
+};
+
 const processProductImagesSynchronously = async ({
   product,
   files,
   sellerId,
+  nextStatus = "pending_review",
 }) => {
   const processedImages = await processProductImages(files, {
     sellerId: sellerId.toString(),
@@ -99,8 +104,11 @@ const processProductImagesSynchronously = async ({
 
   product.images = processedImages;
   product.tempUploads = [];
-  product.status = "ready";
+  product.status = nextStatus;
   product.processingError = "";
+  product.moderationNote = "";
+  product.moderatedAt = undefined;
+  product.moderatedBy = undefined;
 
   await product.save();
 
@@ -182,6 +190,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         product,
         files: req.files,
         sellerId,
+        nextStatus: getProductStatusAfterImageProcessing(req.user),
       });
 
       return res.status(201).json(formatProductForClient(readyProduct));
@@ -311,6 +320,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   product.description = req.body.description ?? product.description;
   product.images = [...keptImages, ...newProcessedImages];
+
+  if (!req.user.isAdmin) {
+    product.status = "pending_review";
+    product.moderationNote = "";
+    product.moderatedAt = undefined;
+    product.moderatedBy = undefined;
+  } else if (
+    product.status === "rejected" ||
+    product.status === "pending_review"
+  ) {
+    product.status = "ready";
+    product.moderationNote = "";
+    product.moderatedAt = new Date();
+    product.moderatedBy = req.user._id;
+  }
 
   const updatedProduct = await product.save();
 
@@ -723,4 +747,61 @@ export const retryProductImageProcessing = asyncHandler(async (req, res) => {
     productId: product._id,
     status: product.status,
   });
+});
+
+export const getProductsPendingReview = asyncHandler(async (req, res) => {
+  const products = await Product.find({ status: "pending_review" })
+    .populate("seller", "username email")
+    .sort({ updatedAt: -1 });
+
+  res.json(products.map((product) => formatProductForClient(product)));
+});
+
+export const approveProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  if (product.status !== "pending_review" && product.status !== "rejected") {
+    res.status(400);
+    throw new Error("Only pending or rejected products can be approved");
+  }
+
+  if (!product.images || product.images.length === 0) {
+    res.status(400);
+    throw new Error("Product must have at least one image before approval");
+  }
+
+  product.status = "ready";
+  product.moderationNote = "";
+  product.moderatedAt = new Date();
+  product.moderatedBy = req.user._id;
+
+  const updatedProduct = await product.save();
+
+  res.json(formatProductForClient(updatedProduct));
+});
+
+export const rejectProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+
+  const reason =
+    req.body.reason?.toString().trim() || "Product rejected by admin";
+
+  product.status = "rejected";
+  product.moderationNote = reason;
+  product.moderatedAt = new Date();
+  product.moderatedBy = req.user._id;
+
+  const updatedProduct = await product.save();
+
+  res.json(formatProductForClient(updatedProduct));
 });

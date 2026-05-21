@@ -128,6 +128,29 @@ export const productApiSlice = apiSlice.injectEndpoints({
       ],
     }),
   }),
+
+  getProductsPendingReview: builder.query({
+    query: () => `${PRODUCTS_URL}/admin/pending-review`,
+    providesTags: ["Product"],
+    keepUnusedDataFor: 5,
+  }),
+
+  approveProduct: builder.mutation({
+    query: (id) => ({
+      url: `${PRODUCTS_URL}/admin/${id}/approve`,
+      method: "PUT",
+    }),
+    invalidatesTags: ["Product"],
+  }),
+
+  rejectProduct: builder.mutation({
+    query: ({ id, reason }) => ({
+      url: `${PRODUCTS_URL}/admin/${id}/reject`,
+      method: "PUT",
+      body: { reason },
+    }),
+    invalidatesTags: ["Product"],
+  }),
 });
 
 export const {
@@ -141,4 +164,7 @@ export const {
   useGetMyProductsQuery,
   useGetMyProductByIdQuery,
   useRetryProductImageProcessingMutation,
+  useGetProductsPendingReviewQuery,
+  useApproveProductMutation,
+  useRejectProductMutation,
 } = productApiSlice;

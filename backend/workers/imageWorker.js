@@ -58,7 +58,8 @@ const processProductImagesJob = async (job) => {
     product.images = processedImages;
     product.tempUploads = [];
     product.processingError = "";
-    product.status = "ready";
+    product.moderationNote = "";
+    product.status = "pending_review";
 
     await product.save();
   } catch (error) {
