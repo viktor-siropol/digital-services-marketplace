@@ -47,54 +47,37 @@ export const productApiSlice = apiSlice.injectEndpoints({
       ],
     }),
 
-    getPublicProductsBrowse: builder.query({
-      query: ({
-        pageNumber = 1,
-        pageSize = 20,
-        keyword = "",
-        category = "all",
-        stock = "all",
-        minPrice = "",
-        maxPrice = "",
-        sortBy = "newest",
-      } = {}) => {
-        const searchParams = new URLSearchParams();
-
-        searchParams.set("pageNumber", String(pageNumber));
-        searchParams.set("pageSize", String(pageSize));
-
-        if (keyword.trim()) {
-          searchParams.set("keyword", keyword.trim());
-        }
-
-        if (category && category !== "all") {
-          searchParams.set("category", category);
-        }
-
-        if (stock && stock !== "all") {
-          searchParams.set("stock", stock);
-        }
-
-        if (minPrice !== "" && minPrice !== null && minPrice !== undefined) {
-          searchParams.set("minPrice", String(minPrice));
-        }
-
-        if (maxPrice !== "" && maxPrice !== null && maxPrice !== undefined) {
-          searchParams.set("maxPrice", String(maxPrice));
-        }
-
-        if (sortBy && sortBy !== "newest") {
-          searchParams.set("sortBy", sortBy);
-        }
-
-        return `${PRODUCTS_URL}/browse?${searchParams.toString()}`;
-      },
+    getPublicProducts: builder.query({
+      query: () => PRODUCTS_URL,
       providesTags: ["Product"],
       keepUnusedDataFor: 5,
     }),
 
-    getPublicProducts: builder.query({
-      query: () => PRODUCTS_URL,
+    getPublicProductsBrowse: builder.query({
+      query: ({
+        pageNumber = 1,
+        pageSize = 10,
+        keyword = "",
+        category = "all",
+        stock = "all",
+        sortBy = "newest",
+        minPrice = "",
+        maxPrice = "",
+      } = {}) => {
+        const params = new URLSearchParams();
+
+        params.set("pageNumber", pageNumber);
+        params.set("pageSize", pageSize);
+
+        if (keyword) params.set("keyword", keyword);
+        if (category && category !== "all") params.set("category", category);
+        if (stock && stock !== "all") params.set("stock", stock);
+        if (sortBy) params.set("sortBy", sortBy);
+        if (minPrice !== "") params.set("minPrice", minPrice);
+        if (maxPrice !== "") params.set("maxPrice", maxPrice);
+
+        return `${PRODUCTS_URL}/browse?${params.toString()}`;
+      },
       providesTags: ["Product"],
       keepUnusedDataFor: 5,
     }),
@@ -127,29 +110,29 @@ export const productApiSlice = apiSlice.injectEndpoints({
         { type: "Product", id },
       ],
     }),
-  }),
 
-  getProductsPendingReview: builder.query({
-    query: () => `${PRODUCTS_URL}/admin/pending-review`,
-    providesTags: ["Product"],
-    keepUnusedDataFor: 5,
-  }),
-
-  approveProduct: builder.mutation({
-    query: (id) => ({
-      url: `${PRODUCTS_URL}/admin/${id}/approve`,
-      method: "PUT",
+    getProductsPendingReview: builder.query({
+      query: () => `${PRODUCTS_URL}/admin/pending-review`,
+      providesTags: ["Product"],
+      keepUnusedDataFor: 5,
     }),
-    invalidatesTags: ["Product"],
-  }),
 
-  rejectProduct: builder.mutation({
-    query: ({ id, reason }) => ({
-      url: `${PRODUCTS_URL}/admin/${id}/reject`,
-      method: "PUT",
-      body: { reason },
+    approveProduct: builder.mutation({
+      query: (id) => ({
+        url: `${PRODUCTS_URL}/admin/${id}/approve`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Product"],
     }),
-    invalidatesTags: ["Product"],
+
+    rejectProduct: builder.mutation({
+      query: ({ id, reason }) => ({
+        url: `${PRODUCTS_URL}/admin/${id}/reject`,
+        method: "PUT",
+        body: { reason },
+      }),
+      invalidatesTags: ["Product"],
+    }),
   }),
 });
 
@@ -158,8 +141,8 @@ export const {
   useUpdateProductMutation,
   useDeleteProductMutation,
   useCreateProductReviewMutation,
-  useGetPublicProductsBrowseQuery,
   useGetPublicProductsQuery,
+  useGetPublicProductsBrowseQuery,
   useGetPublicProductByIdQuery,
   useGetMyProductsQuery,
   useGetMyProductByIdQuery,
