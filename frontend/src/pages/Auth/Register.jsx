@@ -7,6 +7,23 @@ import { useRegisterMutation } from "../../redux/api/userApiSlice";
 import { toast } from "react-toastify";
 import Loader from "../../components/Loader";
 
+const accountTypes = [
+  {
+    value: "customer",
+    title: "Customer",
+    eyebrow: "I want to buy",
+    description:
+      "Browse services, save favorites, place orders, and track purchases.",
+  },
+  {
+    value: "seller",
+    title: "Seller",
+    eyebrow: "I want to sell",
+    description:
+      "Create products, manage your offers, and view incoming sales.",
+  },
+];
+
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -18,6 +35,7 @@ const Register = () => {
   const sp = new URLSearchParams(search);
   const redirect = sp.get("redirect") || "/";
 
+  const [accountType, setAccountType] = useState("customer");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,11 +75,16 @@ const Register = () => {
         username: username.trim(),
         email: email.trim(),
         password,
+        isSeller: accountType === "seller",
       }).unwrap();
 
       dispatch(setCredentials({ ...res }));
       navigate(redirect);
-      toast.success("Account created successfully");
+      toast.success(
+        accountType === "seller"
+          ? "Seller account created successfully"
+          : "Account created successfully",
+      );
     } catch (err) {
       toast.error(err?.data?.message || err.error || "Registration failed");
     }
@@ -69,7 +92,7 @@ const Register = () => {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50">
-      <div className="mx-auto max-w-xl px-4 py-10 md:px-6">
+      <div className="mx-auto max-w-3xl px-4 py-10 md:px-6">
         <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="border-b border-slate-100 pb-5">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">
@@ -80,13 +103,58 @@ const Register = () => {
               Join BitMarket
             </h1>
 
-            <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">
-              Create your account to save favorites, place orders, and manage
-              your marketplace activity in one place.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Choose how you want to use the marketplace. You can create a buyer
+              account or start selling your own digital services.
             </p>
           </div>
 
           <form onSubmit={submitHandler} className="mt-6 space-y-5">
+            <div>
+              <p className="mb-3 text-sm font-medium text-slate-700">
+                Choose account type
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {accountTypes.map((type) => {
+                  const isSelected = accountType === type.value;
+
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setAccountType(type.value)}
+                      className={`rounded-3xl border p-5 text-left transition ${
+                        isSelected
+                          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <p
+                        className={`text-xs font-medium uppercase tracking-[0.2em] ${
+                          isSelected ? "text-slate-300" : "text-slate-400"
+                        }`}
+                      >
+                        {type.eyebrow}
+                      </p>
+
+                      <h2 className="mt-2 text-lg font-semibold">
+                        {type.title}
+                      </h2>
+
+                      <p
+                        className={`mt-2 text-sm leading-6 ${
+                          isSelected ? "text-slate-200" : "text-slate-500"
+                        }`}
+                      >
+                        {type.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label
                 htmlFor="username"
@@ -165,7 +233,11 @@ const Register = () => {
                 disabled={isLoading}
                 className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoading ? "Creating account..." : "Create account"}
+                {isLoading
+                  ? "Creating account..."
+                  : accountType === "seller"
+                    ? "Create seller account"
+                    : "Create customer account"}
               </button>
 
               {isLoading ? <Loader size="sm" /> : null}

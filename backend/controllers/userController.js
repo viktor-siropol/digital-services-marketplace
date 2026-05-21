@@ -6,11 +6,14 @@ import { getClearAuthCookieOptions } from "../utilites/cookieOptions.js";
 
 const createUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
+  const isSeller = req.body.isSeller === true;
+
   if (!username || !email || !password) {
     throw new Error("Please fill all inputs");
   }
 
   const userExist = await User.findOne({ email });
+
   if (userExist) {
     res.status(400);
     throw new Error("User already exists");
@@ -19,7 +22,13 @@ const createUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  const newUser = new User({ username, email, password: hashedPassword });
+  const newUser = new User({
+    username,
+    email,
+    password: hashedPassword,
+    isSeller,
+    isAdmin: false,
+  });
 
   try {
     await newUser.save();
