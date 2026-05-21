@@ -1,15 +1,29 @@
 import { Queue } from "bullmq";
-import { redisConnection } from "../config/redis.js";
+import { getRedisConnection } from "../config/redis.js";
 
-export const imageQueue = new Queue("image-processing", {
-  connection: redisConnection,
-});
+let imageQueue = null;
+
+const getImageQueue = () => {
+  if (process.env.IMAGE_PROCESSING_MODE === "sync") {
+    throw new Error(
+      "Image queue is disabled because IMAGE_PROCESSING_MODE is set to sync",
+    );
+  }
+
+  if (!imageQueue) {
+    imageQueue = new Queue("image-processing", {
+      connection: getRedisConnection(),
+    });
+  }
+
+  return imageQueue;
+};
 
 const FAILED_TEMP_UPLOAD_TTL_MS =
   Number(process.env.FAILED_TEMP_UPLOAD_TTL_MS) || 24 * 60 * 60 * 1000;
 
 export const enqueueImageProcessingJob = async (productId) => {
-  await imageQueue.add(
+  await getImageQueue().add(
     "process-product-images",
     { productId },
     {
@@ -26,7 +40,7 @@ export const enqueueImageProcessingJob = async (productId) => {
 };
 
 export const enqueueFailedTempUploadCleanupJob = async (productId) => {
-  await imageQueue.add(
+  await getImageQueue().add(
     "cleanup-failed-temp-uploads",
     { productId },
     {

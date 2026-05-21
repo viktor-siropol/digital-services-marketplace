@@ -1,6 +1,6 @@
 import path from "path";
 import { Worker } from "bullmq";
-import { redisConnection } from "../config/redis.js";
+import { getRedisConnection } from "../config/redis.js";
 import Product from "../models/productModel.js";
 import { processProductImages } from "../utilites/processProductImages.js";
 import {
@@ -128,7 +128,7 @@ const imageWorker = new Worker(
     }
   },
   {
-    connection: redisConnection,
+    connection: getRedisConnection(),
   },
 );
 
