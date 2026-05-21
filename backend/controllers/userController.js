@@ -2,6 +2,7 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import User from "../models/userModel.js";
 import bcrypt, { compare, hash } from "bcryptjs";
 import createToken from "../utilites/createToken.js";
+import { getClearAuthCookieOptions } from "../utilites/cookieOptions.js";
 
 const createUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
@@ -71,10 +72,8 @@ const LoginUser = asyncHandler(async (req, res) => {
 });
 
 const LogoutUser = asyncHandler(async (req, res) => {
-  res.cookie("jwt", "", {
-    httpOnly: true,
-    expires: new Date(0),
-  });
+  res.cookie("jwt", "", getClearAuthCookieOptions());
+
   res.status(201).json({
     message: "Logged out succesfully",
   });

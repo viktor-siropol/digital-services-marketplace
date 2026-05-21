@@ -2,6 +2,8 @@ import path from "path";
 import express from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import cors from "cors";
+import { createCorsOptions } from "./config/corsOptions.js";
 import { errorHandler, notFound } from "./middlewares/errorMiddleware.js";
 
 export const createApp = ({ routes = {} } = {}) => {
@@ -20,6 +22,8 @@ export const createApp = ({ routes = {} } = {}) => {
       },
     }),
   );
+
+  app.use(cors(createCorsOptions()));
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));

@@ -81,6 +81,32 @@ const getActiveReservedQtyForProduct = async (productId) => {
   return reservedQuantityMap.get(productId.toString()) || 0;
 };
 
+const getImageProcessingMode = () => {
+  return process.env.IMAGE_PROCESSING_MODE === "sync" ? "sync" : "queue";
+};
+
+const processProductImagesSynchronously = async ({
+  product,
+  files,
+  sellerId,
+}) => {
+  const processedImages = await processProductImages(files, {
+    sellerId: sellerId.toString(),
+    productId: product._id.toString(),
+    deleteInputOnSuccess: true,
+    deleteInputOnError: false,
+  });
+
+  product.images = processedImages;
+  product.tempUploads = [];
+  product.status = "ready";
+  product.processingError = "";
+
+  await product.save();
+
+  return product;
+};
+
 export const createProduct = asyncHandler(async (req, res) => {
   const { name, brand, category, price, quantity, countInStock, description } =
     req.body;
@@ -150,6 +176,35 @@ export const createProduct = asyncHandler(async (req, res) => {
     description,
   });
 
+  if (getImageProcessingMode() === "sync") {
+    try {
+      const readyProduct = await processProductImagesSynchronously({
+        product,
+        files: req.files,
+        sellerId,
+      });
+
+      return res.status(201).json(formatProductForClient(readyProduct));
+    } catch (error) {
+      await deleteManyLocalFiles(tempUploads);
+      await Product.deleteOne({ _id: product._id });
+
+      logError({
+        level: "error",
+        scope: "createProduct.syncImageProcessing",
+        message: "Failed to process product images synchronously",
+        error,
+        meta: {
+          productId: product._id.toString(),
+          sellerId: sellerId.toString(),
+        },
+      });
+
+      res.status(500);
+      throw new Error("Failed to process product images");
+    }
+  }
+
   try {
     await enqueueImageProcessingJob(product._id.toString());
   } catch (error) {
@@ -171,7 +226,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw new Error("Failed to enqueue image processing job");
   }
 
-  res.status(201).json(formatProductForClient(product));
+  return res.status(201).json(formatProductForClient(product));
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -312,7 +367,6 @@ export const getPublicProductsBrowse = asyncHandler(async (req, res) => {
   await expireExpiredOrderReservations();
 
   const pageSize = Math.min(40, Math.max(1, Number(req.query.pageSize) || 20));
-
   const requestedPage = Math.max(1, Number(req.query.pageNumber) || 1);
 
   const keyword = req.query.keyword?.toString().trim() || "";
@@ -611,6 +665,35 @@ export const retryProductImageProcessing = asyncHandler(async (req, res) => {
   product.status = "processing";
   product.processingError = "";
   await product.save();
+
+  if (getImageProcessingMode() === "sync") {
+    try {
+      const files = product.tempUploads.map((filePath) => ({
+        path: filePath,
+        filename: filePath.split(/[\\/]/).pop(),
+      }));
+
+      const readyProduct = await processProductImagesSynchronously({
+        product,
+        files,
+        sellerId: req.user._id,
+      });
+
+      return res.json({
+        message: "Image processing completed",
+        productId: readyProduct._id,
+        status: readyProduct.status,
+      });
+    } catch (error) {
+      product.status = "failed";
+      product.processingError =
+        previousError || error.message || "Failed to process images";
+      await product.save();
+
+      res.status(500);
+      throw new Error("Failed to process images");
+    }
+  }
 
   try {
     await enqueueImageProcessingJob(product._id.toString());
