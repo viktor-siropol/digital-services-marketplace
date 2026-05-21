@@ -22,7 +22,6 @@ const sortOptions = [
 ];
 
 const stockOptions = [
-  { value: "all", label: "All products" },
   { value: "in-stock", label: "Available now" },
   { value: "out-of-stock", label: "Unavailable" },
 ];
@@ -43,8 +42,8 @@ const Shop = () => {
   const { data: categories = [] } = useGetCategoriesQuery();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
+  const [selectedStockFilters, setSelectedStockFilters] = useState([]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -72,8 +71,8 @@ const Shop = () => {
     pageNumber,
     pageSize: 10,
     keyword: searchTerm,
-    category: activeCategory,
-    stock: stockFilter,
+    categories: selectedCategoryIds,
+    stock: selectedStockFilters,
     minPrice: normalizedMinPrice,
     maxPrice: normalizedMaxPrice,
     sortBy,
@@ -91,14 +90,45 @@ const Shop = () => {
   }, [sortBy]);
 
   const categoryPills = useMemo(() => {
-    return [
-      { label: "All", value: "all" },
-      ...categories.map((item) => ({
-        label: item.name,
-        value: item._id,
-      })),
-    ];
+    return categories.map((item) => ({
+      label: item.name,
+      value: item._id,
+    }));
   }, [categories]);
+
+  const selectedCategoryIdSet = useMemo(
+    () => new Set(selectedCategoryIds),
+    [selectedCategoryIds],
+  );
+
+  const selectedStockFilterSet = useMemo(
+    () => new Set(selectedStockFilters),
+    [selectedStockFilters],
+  );
+
+  const toggleCategory = (categoryId) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(categoryId)) {
+        return prev.filter((id) => id !== categoryId);
+      }
+
+      return [...prev, categoryId];
+    });
+
+    setPageNumber(1);
+  };
+
+  const toggleStockFilter = (stockValue) => {
+    setSelectedStockFilters((prev) => {
+      if (prev.includes(stockValue)) {
+        return prev.filter((value) => value !== stockValue);
+      }
+
+      return [...prev, stockValue];
+    });
+
+    setPageNumber(1);
+  };
 
   const activeFilterPills = useMemo(() => {
     const pills = [];
@@ -114,35 +144,39 @@ const Shop = () => {
       });
     }
 
-    if (activeCategory !== "all") {
-      const activeCategoryLabel =
-        categoryPills.find((pill) => pill.value === activeCategory)?.label ||
+    selectedCategoryIds.forEach((categoryId) => {
+      const categoryLabel =
+        categoryPills.find((pill) => pill.value === categoryId)?.label ||
         "Category";
 
       pills.push({
-        key: "category",
-        label: activeCategoryLabel,
+        key: `category-${categoryId}`,
+        label: categoryLabel,
         onRemove: () => {
-          setActiveCategory("all");
+          setSelectedCategoryIds((prev) =>
+            prev.filter((id) => id !== categoryId),
+          );
           setPageNumber(1);
         },
       });
-    }
+    });
 
-    if (stockFilter !== "all") {
+    selectedStockFilters.forEach((stockValue) => {
       const stockLabel =
-        stockOptions.find((option) => option.value === stockFilter)?.label ||
+        stockOptions.find((option) => option.value === stockValue)?.label ||
         "Stock";
 
       pills.push({
-        key: "stock",
+        key: `stock-${stockValue}`,
         label: stockLabel,
         onRemove: () => {
-          setStockFilter("all");
+          setSelectedStockFilters((prev) =>
+            prev.filter((value) => value !== stockValue),
+          );
           setPageNumber(1);
         },
       });
-    }
+    });
 
     if (normalizedMinPrice !== "") {
       pills.push({
@@ -169,8 +203,8 @@ const Shop = () => {
     return pills;
   }, [
     searchTerm,
-    activeCategory,
-    stockFilter,
+    selectedCategoryIds,
+    selectedStockFilters,
     normalizedMinPrice,
     normalizedMaxPrice,
     categoryPills,
@@ -180,8 +214,8 @@ const Shop = () => {
 
   const resetFilters = () => {
     setSearchTerm("");
-    setActiveCategory("all");
-    setStockFilter("all");
+    setSelectedCategoryIds([]);
+    setSelectedStockFilters([]);
     setMinPrice("");
     setMaxPrice("");
     setSortBy("newest");
@@ -341,17 +375,29 @@ const Shop = () => {
 
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategoryIds([]);
+                      setPageNumber(1);
+                    }}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      selectedCategoryIds.length === 0
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    All
+                  </button>
+
                   {categoryPills.map((pill) => {
-                    const isActive = activeCategory === pill.value;
+                    const isActive = selectedCategoryIdSet.has(pill.value);
 
                     return (
                       <button
                         key={pill.value}
                         type="button"
-                        onClick={() => {
-                          setActiveCategory(pill.value);
-                          setPageNumber(1);
-                        }}
+                        onClick={() => toggleCategory(pill.value)}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                           isActive
                             ? "bg-slate-900 text-white"
@@ -366,17 +412,29 @@ const Shop = () => {
 
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px_auto]">
                   <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-slate-200 bg-slate-50 p-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedStockFilters([]);
+                        setPageNumber(1);
+                      }}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        selectedStockFilters.length === 0
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-600 hover:bg-white hover:text-slate-900"
+                      }`}
+                    >
+                      All products
+                    </button>
+
                     {stockOptions.map((option) => {
-                      const isActive = stockFilter === option.value;
+                      const isActive = selectedStockFilterSet.has(option.value);
 
                       return (
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => {
-                            setStockFilter(option.value);
-                            setPageNumber(1);
-                          }}
+                          onClick={() => toggleStockFilter(option.value)}
                           className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                             isActive
                               ? "bg-white text-slate-900 shadow-sm"

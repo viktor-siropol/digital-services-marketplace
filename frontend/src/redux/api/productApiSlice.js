@@ -1,6 +1,16 @@
 import { apiSlice } from "./apiSlice";
 import { PRODUCTS_URL } from "../constans";
 
+const normalizeArrayParam = (value) => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+
+  return [value].filter(Boolean);
+};
+
 export const productApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     addProduct: builder.mutation({
@@ -58,8 +68,10 @@ export const productApiSlice = apiSlice.injectEndpoints({
         pageNumber = 1,
         pageSize = 10,
         keyword = "",
-        category = "all",
-        stock = "all",
+        categories = [],
+        category = "",
+        stock = [],
+        stockFilter = "",
         sortBy = "newest",
         minPrice = "",
         maxPrice = "",
@@ -69,9 +81,33 @@ export const productApiSlice = apiSlice.injectEndpoints({
         params.set("pageNumber", pageNumber);
         params.set("pageSize", pageSize);
 
+        const selectedCategories = normalizeArrayParam(categories).filter(
+          (value) => value !== "all",
+        );
+
+        if (selectedCategories.length === 0 && category && category !== "all") {
+          selectedCategories.push(category);
+        }
+
+        const selectedStockFilters = normalizeArrayParam(stock).filter(
+          (value) => value !== "all",
+        );
+
+        if (
+          selectedStockFilters.length === 0 &&
+          stockFilter &&
+          stockFilter !== "all"
+        ) {
+          selectedStockFilters.push(stockFilter);
+        }
+
         if (keyword) params.set("keyword", keyword);
-        if (category && category !== "all") params.set("category", category);
-        if (stock && stock !== "all") params.set("stock", stock);
+        if (selectedCategories.length > 0) {
+          params.set("categories", selectedCategories.join(","));
+        }
+        if (selectedStockFilters.length > 0) {
+          params.set("stock", selectedStockFilters.join(","));
+        }
         if (sortBy) params.set("sortBy", sortBy);
         if (minPrice !== "") params.set("minPrice", minPrice);
         if (maxPrice !== "") params.set("maxPrice", maxPrice);

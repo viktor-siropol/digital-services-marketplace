@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
@@ -25,6 +26,20 @@ const slugify = (text) =>
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+
+const parseQueryList = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  const normalizedValue = Array.isArray(value) ? value.join(",") : value;
+
+  return normalizedValue
+    .toString()
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
 
 const generateUniqueSlug = async ({ sellerId, name, excludeId }) => {
   const base = slugify(name);
@@ -394,8 +409,14 @@ export const getPublicProductsBrowse = asyncHandler(async (req, res) => {
   const requestedPage = Math.max(1, Number(req.query.pageNumber) || 1);
 
   const keyword = req.query.keyword?.toString().trim() || "";
-  const categoryId = req.query.category?.toString().trim() || "";
-  const stockFilter = req.query.stock?.toString().trim() || "all";
+  const selectedCategoryIds = parseQueryList(
+    req.query.categories || req.query.category,
+  ).filter((id) => id !== "all" && mongoose.Types.ObjectId.isValid(id));
+
+  const selectedStockFilters = parseQueryList(req.query.stock).filter(
+    (value) => value === "in-stock" || value === "out-of-stock",
+  );
+
   const sortBy = req.query.sortBy?.toString().trim() || "newest";
 
   const minPrice =
@@ -412,8 +433,8 @@ export const getPublicProductsBrowse = asyncHandler(async (req, res) => {
     status: "ready",
   };
 
-  if (categoryId && categoryId !== "all") {
-    mongoQuery.category = categoryId;
+  if (selectedCategoryIds.length > 0) {
+    mongoQuery.category = { $in: selectedCategoryIds };
   }
 
   if (minPrice !== null && !Number.isNaN(minPrice)) {
@@ -466,13 +487,21 @@ export const getPublicProductsBrowse = asyncHandler(async (req, res) => {
 
   let visibleProducts = productsWithAvailability;
 
-  if (stockFilter === "in-stock") {
+  const hasOnlyInStockSelected =
+    selectedStockFilters.length === 1 &&
+    selectedStockFilters.includes("in-stock");
+
+  const hasOnlyOutOfStockSelected =
+    selectedStockFilters.length === 1 &&
+    selectedStockFilters.includes("out-of-stock");
+
+  if (hasOnlyInStockSelected) {
     visibleProducts = visibleProducts.filter(
       (product) => Number(product.availableStock || 0) > 0,
     );
   }
 
-  if (stockFilter === "out-of-stock") {
+  if (hasOnlyOutOfStockSelected) {
     visibleProducts = visibleProducts.filter(
       (product) => Number(product.availableStock || 0) <= 0,
     );
@@ -701,6 +730,7 @@ export const retryProductImageProcessing = asyncHandler(async (req, res) => {
         product,
         files,
         sellerId: req.user._id,
+        nextStatus: getProductStatusAfterImageProcessing(req.user),
       });
 
       return res.json({
