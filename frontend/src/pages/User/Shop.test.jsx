@@ -120,7 +120,7 @@ describe("Shop page", () => {
       expect(useGetPublicProductsBrowseQuery).toHaveBeenLastCalledWith(
         expect.objectContaining({
           pageNumber: 1,
-          category: "category-1",
+          categories: expect.arrayContaining(["category-1"]),
         }),
       );
     });
