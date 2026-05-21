@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   Outlet,
   RouterProvider,
@@ -5,31 +6,48 @@ import {
   createRoutesFromElements,
   Route,
 } from "react-router-dom";
-import Navigation from "./pages/Auth/Navigation";
+
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+import Navigation from "./pages/Auth/Navigation";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
+import Shop from "./pages/User/Shop";
+
 import ProtectedRoutes from "./components/ProtectedRoutes";
 import RoleRoute from "./components/RoleRoute";
-import Profile from "./pages/User/Profile";
-import Shop from "./pages/User/Shop";
-import ProductDetails from "./pages/User/ProductDetails";
-import Cart from "./pages/User/Cart";
-import MyOrders from "./pages/User/MyOrders";
-import OrderDetails from "./pages/User/OrderDetails";
-import UserList from "./pages/Admin/UserList";
-import CategoryList from "./pages/Admin/CategoryList";
-import MyProducts from "./pages/Seller/MyProducts";
-import ManageProduct from "./pages/Seller/ManageProduct";
-import CreateProduct from "./pages/Seller/CreateProduct";
-import Favorites from "./pages/User/Favorites";
-import SellerOrders from "./pages/Seller/SellerOrders";
 import Footer from "./components/Footer";
-import SellerOrderDetails from "./pages/Seller/SellerOrderDetails";
 import RouteErrorPage from "./components/RouteErrorPage";
 import NotFound from "./components/NotFound";
-import ProductReview from "./pages/Admin/ProductReview";
+import Loader from "./components/Loader";
+
+const Profile = lazy(() => import("./pages/User/Profile"));
+const ProductDetails = lazy(() => import("./pages/User/ProductDetails"));
+const Cart = lazy(() => import("./pages/User/Cart"));
+const MyOrders = lazy(() => import("./pages/User/MyOrders"));
+const OrderDetails = lazy(() => import("./pages/User/OrderDetails"));
+const Favorites = lazy(() => import("./pages/User/Favorites"));
+
+const UserList = lazy(() => import("./pages/Admin/UserList"));
+const CategoryList = lazy(() => import("./pages/Admin/CategoryList"));
+const ProductReview = lazy(() => import("./pages/Admin/ProductReview"));
+
+const MyProducts = lazy(() => import("./pages/Seller/MyProducts"));
+const ManageProduct = lazy(() => import("./pages/Seller/ManageProduct"));
+const CreateProduct = lazy(() => import("./pages/Seller/CreateProduct"));
+const SellerOrders = lazy(() => import("./pages/Seller/SellerOrders"));
+const SellerOrderDetails = lazy(
+  () => import("./pages/Seller/SellerOrderDetails"),
+);
+
+const RouteLoader = () => {
+  return (
+    <div className="flex min-h-[calc(100vh-64px)] items-center justify-center p-6">
+      <Loader />
+    </div>
+  );
+};
 
 const Layout = () => {
   return (
@@ -48,7 +66,9 @@ const Layout = () => {
       <Navigation />
 
       <main className="min-h-[calc(100vh-64px)]">
-        <Outlet />
+        <Suspense fallback={<RouteLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <Footer />
@@ -76,16 +96,16 @@ const router = createBrowserRouter(
 
       <Route element={<RoleRoute allowedRoles={["admin", "seller"]} />}>
         <Route path="seller/products" element={<MyProducts />} />
+        <Route path="seller/products/new" element={<CreateProduct />} />
         <Route path="seller/products/:id" element={<ManageProduct />} />
         <Route path="seller/orders" element={<SellerOrders />} />
         <Route path="seller/orders/:id" element={<SellerOrderDetails />} />
-        <Route path="seller/products/new" element={<CreateProduct />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={["admin"]} />}>
         <Route path="admin/userlist" element={<UserList />} />
         <Route path="admin/category" element={<CategoryList />} />
-        <Route path="/admin/product-review" element={<ProductReview />} />
+        <Route path="admin/product-review" element={<ProductReview />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
